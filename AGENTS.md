@@ -1,11 +1,14 @@
 # screen-recordings
 
-Scope: a macOS menu bar app that records the main display with system audio, and the camera with the microphone into a separate file that is never shown on screen. When you stop, it adds the camera as a round bubble in the upper-right corner.
+Scope: tools for making screen recordings.
+
+- The menu bar app (`Sources/`, `build.sh`) records the main display with system audio, and the camera with the microphone into a separate file that is never shown on screen. When you stop, it adds the camera as a round bubble in the upper-right corner.
+- `vtuber/` renders a 3D anime avatar (three.js in headless Chrome) that reacts to the voice, the screen and transcript moments, and composites it onto a recording with ffmpeg.
 
 - Visibility: public
 - Still running or billing: none
 
-## Build and install
+## Menu bar app: build and install
 
 `./build.sh install` builds, signs with the "Switcher Local Code Signing" identity and copies the app to `/Applications`. The stable signature keeps the Camera, Microphone and Screen Recording grants valid across rebuilds. On macOS 26 the grants still have to be clicked through once per Mac.
 
