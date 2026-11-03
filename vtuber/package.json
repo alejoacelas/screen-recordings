@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@pixiv/three-vrm": "^3.5.5",
     "playwright-core": "^1.49.1",
     "three": "^0.170.0"
   }

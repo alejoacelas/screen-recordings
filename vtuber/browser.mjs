@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.mjs': 'text/javascript' };
+const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.mjs': 'text/javascript', '.vrm': 'model/gltf-binary' };
 
-export async function openAvatar() {
+export async function openAvatar(model = process.env.MODEL || "AvatarSample_A") {
   const server = http.createServer((req, res) => {
     const p = path.join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
     if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -20,7 +20,7 @@ export async function openAvatar() {
   const page = await browser.newPage({ viewport: { width: 1400, height: 600 } });
   page.on('console', (m) => { if (m.type() === 'error') console.error('[page]', m.text()); });
   page.on('pageerror', (e) => console.error('[page error]', e.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}/web/index.html`);
-  await page.waitForFunction(() => window.ready === true, null, { timeout: 30000 });
+  await page.goto(`http://127.0.0.1:${server.address().port}/web/index.html?model=${model}`);
+  await page.waitForFunction(() => window.ready === true, null, { timeout: 90000 });
   return { page, close: async () => { await browser.close(); server.close(); } };
 }

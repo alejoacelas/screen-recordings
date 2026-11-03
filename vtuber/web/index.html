@@ -4,9 +4,13 @@
 <meta charset="utf-8">
 <title>avatar</title>
 <style>body{margin:0;background:#2a2a30}canvas{display:block}</style>
-<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js"}}</script>
+<script type="importmap">{"imports":{
+  "three":"/node_modules/three/build/three.module.js",
+  "three/addons/":"/node_modules/three/examples/jsm/",
+  "@pixiv/three-vrm":"/node_modules/@pixiv/three-vrm/lib/three-vrm.module.js"
+}}</script>
 </head>
 <body>
-<script type="module" src="./avatar.js"></script>
+<script type="module" src="./vrm.js"></script>
 </body>
 </html>
