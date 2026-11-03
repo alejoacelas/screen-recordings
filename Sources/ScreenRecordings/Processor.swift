@@ -70,8 +70,11 @@ enum Processor {
         filters.append("\(cameraParts)concat=n=\(count):v=1:a=1[cv][ca]")
         filters.append("[sv]fps=30[screen]")
         // Center-crop to a square, scale, and cut a circle with a one-pixel soft edge.
-        filters.append("[cv]fps=30,crop='min(iw,ih)':'min(iw,ih)',scale=\(bubble):\(bubble),format=yuva420p,"
-            + "geq=lum='p(X,Y)':cb='p(X,Y)':cr='p(X,Y)':a='255*clip(W/2-hypot(X-W/2+0.5,Y-H/2+0.5)+0.5,0,1)'[bubble]")
+        // The circular mask is drawn once and repeated for every frame.
+        filters.append("color=black:s=\(bubble)x\(bubble):r=30:d=1,format=gray,"
+            + "geq=lum='255*clip(W/2-hypot(X-W/2+0.5,Y-H/2+0.5)+0.5,0,1)',loop=loop=-1:size=1[mask]")
+        filters.append("[cv]fps=30,crop='min(iw,ih)':'min(iw,ih)',scale=\(bubble):\(bubble),format=yuv420p[face]")
+        filters.append("[face][mask]alphamerge=shortest=1[bubble]")
         filters.append("[screen][bubble]overlay=x=W-w-\(margin):y=\(margin),format=yuv420p[v]")
         filters.append("[sa][ca]amix=inputs=2:duration=longest:normalize=0[a]")
 
