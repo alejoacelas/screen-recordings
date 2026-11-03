@@ -1,4 +1,4 @@
-// End-to-end checks for the editor, run in real Chrome (H.264 needs it).
+// End-to-end checks for the player and editor, run in real Chrome (H.264 needs it).
 // Usage: node tests/e2e.mjs http://127.0.0.1:8790 [screenshot-dir]
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -11,213 +11,212 @@ const check = (name, ok, detail = "") => { results.push({ name, ok, detail }); c
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
-const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
-const errors = [];
-page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-const ev = (fn, arg) => page.evaluate(fn, arg);
-const shot = (name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 const original = await (await fetch(`${URL}/data/edit.json`)).text();
 const originalZoom = await (await fetch(`${URL}/data/zoom.json`)).text();
+const errors = [];
 
-try {
-  await page.goto(URL);
+async function open(path) {
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  await page.goto(URL + path);
   await page.waitForFunction(() => typeof pieces !== "undefined" && pieces.length && video.readyState >= 2, null, { timeout: 30000 });
   await sleep(500);
+  return page;
+}
 
-  // 1. Load
-  const counts = await ev(() => ({ lines: document.querySelectorAll(".line").length, heads: document.querySelectorAll(".chapHead").length,
-    chaps: document.querySelectorAll(".chap").length, segs: document.querySelectorAll(".seg").length, total, dur: video.duration }));
-  check("transcript, sections and timeline render", counts.lines > 100 && counts.heads >= 5 && counts.chaps >= 5 && counts.segs >= 5, JSON.stringify(counts));
-  check("edited length is shorter than the source", counts.total > 600 && counts.total < counts.dur * 0.7, `${Math.round(counts.total / 60)} min of ${Math.round(counts.dur / 60)}`);
-  await shot("01-loaded");
+try {
+  // ======================= viewer mode =======================
+  let page = await open("/");
+  const ev = (fn, arg) => page.evaluate(fn, arg);
+  const shot = (name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
 
-  // 2. Play from the start: section card, captions, time advances
+  const v1 = await ev(() => ({ editHidden: getComputedStyle($("editPane")).display === "none", items: document.querySelectorAll(".chItem").length,
+    skips: document.querySelectorAll(".skipRow").length, chaps: document.querySelectorAll(".chap").length, total, dur: video.duration }));
+  check("viewer: editing tools are hidden", v1.editHidden);
+  check("viewer: sections list and chapter bar render", v1.items >= 5 && v1.chaps === v1.items && v1.skips >= 3, JSON.stringify(v1));
+  check("viewer: highlights are much shorter than the source", v1.total > 600 && v1.total < v1.dur * 0.7, `${Math.round(v1.total / 60)} of ${Math.round(v1.dur / 60)} min`);
+  await shot("01-viewer");
+
   await page.keyboard.press("k");
   await sleep(2500);
-  const s2 = await ev(() => ({ t: video.currentTime, paused: video.paused, card: !$("sectionCard").hidden && $("sectionCard").textContent, cap: !$("caption").hidden }));
-  check("playback advances", !s2.paused && s2.t > 1, `t=${s2.t.toFixed(2)}`);
-  check("first section title shows at the start", !!s2.card, String(s2.card));
-  await shot("02-playing-start");
+  const v2 = await ev(() => ({ t: video.currentTime, paused: video.paused, card: !$("sectionCard").hidden && $("sectionCard").textContent }));
+  check("viewer: playback advances", !v2.paused && v2.t > 1, `t=${v2.t.toFixed(2)}`);
+  check("viewer: first section title shows", !!v2.card, String(v2.card));
   await sleep(2500);
-  check("captions appear while speaking", await ev(() => !$("caption").hidden), await ev(() => $("caption").textContent));
+  check("viewer: captions appear while speaking", await ev(() => !$("caption").hidden), await ev(() => $("caption").textContent));
+  await shot("02-viewer-playing");
 
-  // 3. Transcript follows playback
-  await ev(() => seekSource(900));
-  await sleep(1200);
-  const s3 = await ev(() => {
+  // next section button
+  const c0 = await ev(() => curChap);
+  await page.hover("#stage"); await page.click("#next"); await sleep(300);
+  check("viewer: next-section button jumps to the next section", await ev(() => curChap) === c0 + 1, `${c0} → ${await ev(() => curChap)}`);
+
+  // sections list click
+  await page.click('.chItem[data-c="4"] .title'); await sleep(300);
+  check("viewer: clicking a section seeks to it", await ev(() => curChap) === 4);
+
+  // sped-up segment: banner, then expand from the banner
+  const fast = await ev(() => edit.segments.find((s) => s.mode === "fast" && s.speed <= 16));
+  await ev((t) => seekSource(t + 1), fast.s); await sleep(800);
+  const v3 = await ev(() => ({ banner: !$("fastBanner").hidden && $("fastText").textContent, rate: video.playbackRate, muted: video.muted, tf: video.style.transform }));
+  check("viewer: sped-up part shows its title", !!v3.banner && v3.banner.includes(fast.label), String(v3.banner));
+  check("viewer: sped-up part plays fast and muted", Math.abs(v3.rate - fast.speed) < 0.01 && v3.muted, JSON.stringify(v3));
+  check("viewer: zoom is off while sped up", v3.tf.startsWith("scale(1)"), v3.tf);
+  await shot("03-viewer-fast");
+  await page.click("#expandHere"); await sleep(400);
+  const v4 = await ev(() => ({ rate: video.playbackRate, banner: !$("fastBanner").hidden, row: !!document.querySelector(".skipRow.expanded") }));
+  check("viewer: 'Watch at normal speed' plays that part at 1x", v4.rate <= 6 && !v4.banner && v4.row, JSON.stringify(v4));
+  await page.click(".skipRow.expanded button"); await sleep(200);
+  check("viewer: Collapse restores the speed-up", await ev(() => !document.querySelector(".skipRow.expanded")));
+
+  // 16x+ segment keeps moving
+  const vfast = await ev(() => edit.segments.find((s) => s.mode === "fast" && s.speed > 16));
+  if (vfast) {
+    await ev((t) => seekSource(t + 1), vfast.s); await sleep(300);
+    const a = await ev(() => video.currentTime); await sleep(2000); const b = await ev(() => video.currentTime);
+    check(`viewer: ${vfast.speed}x part advances faster than 16x`, (b - a) / 2 > 18, `${((b - a) / 2).toFixed(1)} s of source per second`);
+  }
+
+  // "Watch in full" from the sections list
+  await page.locator(".skipRow button").first().click(); await sleep(400);
+  const v5 = await ev(() => { const s = edit.segments.find((x) => expanded.has(x.s)); return { t: video.currentTime, s: s && s.s, playing: !video.paused, rate: video.playbackRate }; });
+  check("viewer: 'Watch in full' in the list jumps there and plays at normal speed", v5.s !== undefined && Math.abs(v5.t - v5.s) < 2 && v5.playing && v5.rate <= 6, JSON.stringify(v5));
+  await page.locator(".skipRow.expanded button").first().click();
+
+  // speed menu
+  await page.hover("#stage"); await page.click("#gear"); await page.click('#rates [data-rate="1.5"]'); await sleep(300);
+  await ev(() => seekSource(edit.segments[0].s + 20)); await sleep(300);
+  const v6 = await ev(() => { const p = pieces[pieceIndex(video.currentTime)]; return { rate: video.playbackRate, pr: p && p.rate, time: $("time").textContent }; });
+  check("viewer: speed menu scales playback", Math.abs(v6.rate - 1.5 * v6.pr) < 0.01, JSON.stringify(v6));
+  await shot("04-viewer-menu");
+  await page.click('#rates [data-rate="1"]');
+  await page.mouse.click(5, 5);
+
+  // a cut: toast offers to watch it
+  await ev(() => { const a = edit.segments[0].s + 40; setRangeMode(a, a + 20, "cut"); normalize(); rebuild(); });
+  const cut = await ev(() => edit.segments.find((s) => s.mode === "cut"));
+  await ev((t) => { seekSource(t - 1.5); video.play(); }, cut.s); await sleep(2200);
+  const v7 = await ev(() => ({ t: video.currentTime, toast: !$("toast").hidden && $("toastText").textContent }));
+  check("viewer: playback skips a cut and says so", v7.t >= cut.e && !!v7.toast, JSON.stringify(v7));
+  await shot("05-viewer-toast");
+  await page.click("#toastBtn"); await sleep(400);
+  const v8 = await ev((s) => ({ t: video.currentTime, exp: expanded.has(s) }), cut.s);
+  check("viewer: 'Watch it' plays the cut part", v8.exp && Math.abs(v8.t - cut.s) < 1.5, JSON.stringify(v8));
+
+  // transcript tab follows playback; clicking a skipped line plays it
+  await page.click('[data-tab="transcriptTab"]');
+  await ev(() => seekSource(900)); await sleep(1200);
+  const v9 = await ev(() => {
     const el = document.querySelector(".line.now"), box = $("transcript");
     const y = el ? el.getBoundingClientRect().top - box.getBoundingClientRect().top : -1;
     return { idx: el ? +el.dataset.l : -1, expect: lineAt(video.currentTime), visible: y > 0 && y < box.clientHeight, word: !!document.querySelector(".w.cur") };
   });
-  check("current transcript line matches the video", s3.idx === s3.expect, JSON.stringify(s3));
-  check("current line is scrolled into view", s3.visible);
-  check("current word is highlighted", s3.word);
-  await shot("03-transcript-sync");
+  check("viewer: transcript highlights the current line", v9.idx === v9.expect, JSON.stringify(v9));
+  check("viewer: transcript keeps the current line in view", v9.visible);
+  check("viewer: transcript highlights the current word", v9.word);
+  await shot("06-viewer-transcript");
+  const skipLine = await ev(() => lines.findIndex((l) => { const s = edit.segments[segAt(l.s + 0.05)]; return s.mode === "fast" && !expanded.has(s.s); }));
+  await page.locator(`.line[data-l="${skipLine}"]`).scrollIntoViewIfNeeded();
+  await page.click(`.line[data-l="${skipLine}"] .t`); await sleep(300);
+  check("viewer: clicking a skipped line expands it", await ev((i) => expanded.has(edit.segments[segAt(lines[i].s + 0.05)].s), skipLine));
 
-  // 4. Sped-up segment: banner, rate, mute
-  const fast = await ev(() => edit.segments.find((s) => s.mode === "fast" && s.speed <= 16));
-  await ev((t) => seekSource(t + 1), fast.s);
-  await sleep(800);
-  const s4 = await ev(() => ({ banner: !$("fastBanner").hidden && $("fastBanner").textContent, rate: video.playbackRate, muted: video.muted, tf: video.style.transform }));
-  check("sped-up segment shows its title", !!s4.banner && s4.banner.includes(fast.label), String(s4.banner));
-  check("sped-up segment plays at its speed and muted", Math.abs(s4.rate - fast.speed) < 0.01 && s4.muted, JSON.stringify(s4));
-  check("zoom is off during sped-up segments", s4.tf.startsWith("scale(1)"), s4.tf);
-  await shot("04-fast-banner");
+  // controls hide while playing; help; narrow layout
+  await page.mouse.move(800, 900); await ev(() => video.play()); await sleep(3200);
+  check("viewer: controls hide while playing", await ev(() => stage.classList.contains("idle")));
+  await ev(() => video.pause());
+  await page.keyboard.press("?");
+  check("viewer: ? opens shortcuts", await ev(() => !$("help").hidden));
+  await shot("07-viewer-help");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 820, height: 1000 }); await sleep(300);
+  check("viewer: no horizontal overflow at 820px", !(await ev(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+  await shot("08-viewer-narrow");
+  await page.close();
 
-  // 5. Speeds above 16x still move through the segment
-  const vfast = await ev(() => edit.segments.find((s) => s.mode === "fast" && s.speed > 16));
-  if (vfast) {
-    await ev((t) => seekSource(t + 1), vfast.s);
-    await sleep(300);
-    const a = await ev(() => video.currentTime); await sleep(2000); const b = await ev(() => video.currentTime);
-    const eff = (b - a) / 2;
-    check(`${vfast.speed}x segment advances faster than 16x`, eff > 18, `${eff.toFixed(1)} s of source per second`);
-  }
+  // ======================= edit mode =======================
+  page = await open("/?edit");
+  const ed = (fn, arg) => page.evaluate(fn, arg);
+  const eshot = (name) => page.screenshot({ path: `${SHOTS}/${name}.png` });
+  check("edit: ?edit shows the editing tools", await ed(() => getComputedStyle($("editPane")).display !== "none"));
+  await page.click('[data-tab="transcriptTab"]');
+  await eshot("09-edit");
 
-  // 6. Normal speed with the speed menu; pauses speed up
-  await ev(() => seekSource(edit.segments[0].s + 20));
-  await page.hover("#stage"); await page.click("#rateBtn"); await page.click('#rateMenu [data-rate="1.5"]');
-  await sleep(400);
-  const s6 = await ev(() => { const p = pieces[pieceIndex(video.currentTime)]; return { rate: video.playbackRate, kind: p && p.kind, pr: p && p.rate }; });
-  check("speed menu scales playback", Math.abs(s6.rate - 1.5 * s6.pr) < 0.01, JSON.stringify(s6));
-  check("time display reflects 1.5x", await ev(() => $("lengths").textContent.includes("at 1.5×")));
-  await page.click("#rateBtn"); await page.click('#rateMenu [data-rate="1"]');
-  check("pauses become sped-up pieces", await ev(() => pieces.some((p) => p.kind === "pause")));
-
-  // 7. Zoom follows keyframes and toggles off
-  const zk = await ev(() => zoom.find((k) => k.w < 1 && k.t > 60 && edit.segments[segAt(k.t + 2)].mode === "normal"));
-  await ev((t) => seekSource(t + 2), zk.t); await sleep(1200);
-  const zOn = await ev(() => video.style.transform);
-  await page.keyboard.press("z"); await sleep(100);
-  const zOff = await ev(() => video.style.transform);
-  await page.keyboard.press("z");
-  check("zoom applies at a zoom keyframe", !zOn.startsWith("scale(1)"), zOn);
-  check("Z toggles zoom off", zOff.startsWith("scale(1)"), zOff);
-  await sleep(900);
-  await shot("05-zoomed");
-
-  // 8. Cut a range from the transcript; playback skips it; undo restores
-  await page.keyboard.press("k"); // pause
-  const segsBefore = await ev(() => edit.segments.length);
-  const totalBefore = await ev(() => total);
-  const [la, lb] = await ev(() => { const a = lineAt(edit.segments[0].s + 60); return [a, a + 3]; });
+  const segsBefore = await ed(() => edit.segments.length), totalBefore = await ed(() => total);
+  const la = await ed(() => lineAt(edit.segments[0].s + 60)), lb = la + 3;
+  await page.locator(`.line[data-l="${la}"]`).scrollIntoViewIfNeeded();
   await page.click(`.line[data-l="${la}"] .t`);
   await page.click(`.line[data-l="${lb}"] .t`, { modifiers: ["Shift"] });
-  const selShown = await ev(() => !$("selBar").hidden && $("selInfo").textContent);
-  check("shift-click selects a range of lines", !!selShown && selShown.startsWith("4 lines"), String(selShown));
-  await shot("06-selection");
+  const sel = await ed(() => !$("selBar").hidden && $("selInfo").textContent);
+  check("edit: shift-click selects a range of lines", !!sel && sel.startsWith("4 lines"), String(sel));
+  await eshot("10-edit-selection");
   await page.keyboard.press("3");
-  const s8 = await ev(([a, b]) => ({ segs: edit.segments.length, total, cutLines: [...Array(b - a + 1)].every((_, i) => document.querySelector(`.line[data-l="${a + i}"]`).classList.contains("cut")) }), [la, lb]);
-  check("pressing 3 cuts the selected lines", s8.cutLines && s8.segs === segsBefore + 2 && s8.total < totalBefore, JSON.stringify(s8));
-  const cutSeg = await ev(([a]) => edit.segments[segAt(lines[a].s + 0.05)], [la]);
-  await ev((t) => { seekSource(t - 1.5); video.play(); }, cutSeg.s);
-  await sleep(2500);
-  const after = await ev(() => video.currentTime);
-  check("playback skips the cut", after >= cutSeg.e, `cut ${cutSeg.s.toFixed(1)}–${cutSeg.e.toFixed(1)}, now ${after.toFixed(1)}`);
-  await page.keyboard.press("k");
-  await shot("07-after-cut");
+  const e1 = await ed(([a, b]) => ({ segs: edit.segments.length, total, cut: [...Array(b - a + 1)].every((_, i) => lineEl(a + i).classList.contains("cut")) }), [la, lb]);
+  check("edit: 3 cuts the selected lines", e1.cut && e1.segs === segsBefore + 2 && e1.total < totalBefore, JSON.stringify(e1));
+  const cutSeg = await ed((a) => edit.segments[segAt(lines[a].s + 0.05)], la);
+  await ed((t) => { seekSource(t - 1.5); video.play(); }, cutSeg.s); await sleep(2500);
+  check("edit: playback skips the new cut", await ed(() => video.currentTime) >= cutSeg.e);
+  await ed(() => video.pause());
   await page.keyboard.press("Meta+z");
-  check("undo restores the segments", await ev(() => edit.segments.length) === segsBefore);
+  check("edit: undo restores the segments", await ed(() => edit.segments.length) === segsBefore);
   await page.keyboard.press("Meta+Shift+z");
-  check("redo reapplies the cut", await ev(() => edit.segments.length) === segsBefore + 2);
+  check("edit: redo reapplies the cut", await ed(() => edit.segments.length) === segsBefore + 2);
+  await sleep(1500);
+  const saved = await (await fetch(`${URL}/data/edit.json`)).json();
+  check("edit: changes autosave to data/edit.json", saved.segments.length === segsBefore + 2, `${saved.segments.length} on disk`);
   await page.keyboard.press("Meta+z");
 
-  // 9. Unedited mode plays through cuts
-  await page.keyboard.press("u");
-  check("unedited mode disables the edit", await ev(() => raw === true));
-  await page.keyboard.press("u");
-
-  // 10. Speed up a range and title it from the card
   await page.click(`.line[data-l="${la}"] .t`);
   await page.click(`.line[data-l="${la + 2}"] .t`, { modifiers: ["Shift"] });
   await page.keyboard.press("2");
-  await page.fill("#segLabel", "Test title");
-  await page.press("#segLabel", "Enter");
-  await page.locator("#segLabel").blur();
-  const s10 = await ev(() => edit.segments[selected]);
-  check("2 speeds up the range and the title field names it", s10.mode === "fast" && s10.label === "Test title", JSON.stringify(s10));
-  await shot("08-fast-card");
+  await page.fill("#segLabel", "Test title"); await page.press("#segLabel", "Enter"); await page.locator("#segLabel").blur();
+  const e2 = await ed(() => edit.segments[selected]);
+  check("edit: 2 speeds up the range and the title field names it", e2.mode === "fast" && e2.label === "Test title", JSON.stringify({ mode: e2.mode, label: e2.label }));
+  await eshot("11-edit-fast");
   await page.keyboard.press("Meta+z"); await page.keyboard.press("Meta+z");
 
-  // 11. Timeline: click selects segment; drag a boundary
-  const box = await page.locator("#timeline").boundingBox();
-  await page.mouse.click(box.x + box.width * 0.5, box.y + 40);
-  const sel = await ev(() => ({ selected, t: video.currentTime, seg: edit.segments[selected] }));
-  check("timeline click seeks and selects the segment under it", sel.t >= sel.seg.s && sel.t <= sel.seg.e, JSON.stringify({ t: sel.t, s: sel.seg.s, e: sel.seg.e }));
-  const bnd = page.locator('.boundary[data-b="1"]');
-  const bb = await bnd.boundingBox();
-  const oldS = await ev(() => edit.segments[1].s);
+  const tb = await page.locator("#timeline").boundingBox();
+  await page.mouse.click(tb.x + tb.width * 0.5, tb.y + 40);
+  const e3 = await ed(() => ({ t: video.currentTime, s: edit.segments[selected].s, e: edit.segments[selected].e }));
+  check("edit: timeline click seeks and selects", e3.t >= e3.s && e3.t <= e3.e, JSON.stringify(e3));
+  const bb = await page.locator('.boundary[data-b="1"]').boundingBox();
+  const oldS = await ed(() => edit.segments[1].s);
   await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
   await page.mouse.down(); await page.mouse.move(bb.x + bb.width / 2 + 25, bb.y + bb.height / 2, { steps: 5 }); await page.mouse.up();
-  const newS = await ev(() => edit.segments[1].s);
-  check("dragging a boundary moves it", newS > oldS + 5, `${oldS.toFixed(1)} → ${newS.toFixed(1)}`);
+  const newS = await ed(() => edit.segments[1].s);
+  check("edit: dragging a boundary moves it", newS > oldS + 5, `${oldS.toFixed(1)} → ${newS.toFixed(1)}`);
   await page.keyboard.press("Meta+z");
-  check("undo restores the boundary", Math.abs((await ev(() => edit.segments[1].s)) - oldS) < 0.01);
+  check("edit: undo restores the boundary", Math.abs((await ed(() => edit.segments[1].s)) - oldS) < 0.01);
 
-  // 12. Chapter bar hover and click
-  await page.hover("#stage");
-  const cb = await page.locator("#chapterBar").boundingBox();
-  await page.mouse.move(cb.x + cb.width * 0.6, cb.y + cb.height / 2);
-  await sleep(200);
-  const tip = await ev(() => !$("barHover").hidden && $("barHover").textContent);
-  await shot("09-chapter-hover");
-  check("chapter bar hover shows section and time", !!tip, String(tip));
-  await page.mouse.click(cb.x + cb.width * 0.6, cb.y + cb.height / 2);
-  const et = await ev(() => editedOf(video.currentTime) / total);
-  check("chapter bar click seeks in edited time", Math.abs(et - 0.6) < 0.02, et.toFixed(3));
-
-  // 13. Section titles: add from selection, rename, delete
-  const nSec = await ev(() => edit.sections.length);
+  const nSec = await ed(() => edit.sections.length);
   await page.click(`.line[data-l="${la}"] .t`);
   await page.click(`.line[data-l="${la}"] .t`, { modifiers: ["Shift"] });
   await page.click("#selSection");
-  await page.keyboard.type("Renamed section"); await page.keyboard.press("Enter");
-  await sleep(100);
-  check("adding and renaming a section title", await ev(() => edit.sections.some((s) => s.title === "Renamed section")) && await ev(() => edit.sections.length) === nSec + 1);
+  await page.keyboard.type("Renamed section"); await page.keyboard.press("Enter"); await sleep(100);
+  check("edit: add and rename a section title", await ed(() => edit.sections.some((s) => s.title === "Renamed section")));
   await page.keyboard.press("Meta+z"); await page.keyboard.press("Meta+z");
-  check("undo removes the added section", await ev(() => edit.sections.length) === nSec);
+  check("edit: undo removes the added section", await ed(() => edit.sections.length) === nSec);
 
-  // 14. Transcript search
-  await page.fill("#search", "German");
-  await sleep(200);
-  const hits = await ev(() => ({ shown: document.querySelectorAll(".line:not(.hidden)").length, marks: document.querySelectorAll("mark").length }));
-  check("search filters lines and highlights matches", hits.shown > 0 && hits.shown < 200 && hits.marks > 0, JSON.stringify(hits));
-  await shot("10-search");
+  const zk = await ed(() => zoom.find((k) => k.w < 1 && k.t > 60 && edit.segments[segAt(k.t + 2)].mode === "normal"));
+  await ed((t) => seekSource(t + 2), zk.t); await sleep(1200);
+  const zOn = await ed(() => video.style.transform);
+  await page.keyboard.press("z"); await sleep(100);
+  const zOff = await ed(() => video.style.transform);
+  await page.keyboard.press("z");
+  check("edit: zoom applies at keyframes and Z toggles it", !zOn.startsWith("scale(1)") && zOff.startsWith("scale(1)"), `${zOn} / ${zOff}`);
+  await sleep(900);
+  await eshot("12-edit-zoomed");
+
+  await page.fill("#search", "German"); await sleep(200);
+  const hits = await ed(() => ({ shown: document.querySelectorAll(".line:not(.hidden)").length, marks: document.querySelectorAll("mark").length }));
+  check("edit: search filters and highlights", hits.shown > 0 && hits.shown < 200 && hits.marks > 0, JSON.stringify(hits));
   await page.fill("#search", "");
 
-  // 15. Autosave writes to disk
-  await page.click(`.line[data-l="${la}"] .t`); await page.keyboard.press("3");
-  await sleep(1500);
-  const saved = await (await fetch(`${URL}/data/edit.json`)).json();
-  check("edits autosave to data/edit.json", saved.segments.length === segsBefore + 2 || saved.segments.length === segsBefore + 1, `${saved.segments.length} segments on disk`);
-  await page.keyboard.press("Meta+z"); await sleep(1500);
-
-  // 16. Controls auto-hide while playing
-  await ev(() => seekSource(edit.segments[0].s + 30));
-  await page.mouse.move(cb.x + 200, cb.y - 200);
-  await page.keyboard.press("k");
-  await sleep(3200);
-  check("controls hide while playing", await ev(() => stage.classList.contains("idle")));
-  await page.keyboard.press("k");
-
-  // 17. Help overlay
-  await page.keyboard.press("?");
-  check("? opens shortcuts", await ev(() => !$("help").hidden));
-  await shot("11-help");
-  await page.keyboard.press("Escape");
-
-  // 18. Narrow window
-  await page.setViewportSize({ width: 900, height: 1000 });
-  await sleep(300);
-  const overflow = await ev(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-  check("no horizontal overflow at 900px", !overflow);
-  await shot("12-narrow");
-
+  await page.keyboard.press("e");
+  check("E leaves edit mode", await ed(() => !editing && getComputedStyle($("editPane")).display === "none"));
   check("no console errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 } catch (e) {
   check("test run completed", false, e.stack?.split("\n").slice(0, 3).join(" "));
-  await shot("zz-crash").catch(() => {});
 } finally {
   // Close first so a pending autosave can't land, then put the data files back exactly as they were.
   await browser.close();

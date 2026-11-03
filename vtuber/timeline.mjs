@@ -1,4 +1,5 @@
 // Turns the precomputed signals plus hand-picked transcript moments into one avatar state per frame.
+import { mapFace } from './facemap.mjs';
 export const FPS = 30;
 
 export const BASE = {
@@ -81,8 +82,8 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const easeOutBack = (x) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 
 export class Timeline {
-  constructor(mouth, look) {
-    this.mouth = mouth; this.look = look;
+  constructor(mouth, look, face = null, events = EVENTS) {
+    this.mouth = mouth; this.look = look; this.face = face; this.events = events;
     this.rand = rng(7);
     this.nextBlink = 2; this.blinkStart = -9; this.doubleBlink = false;
     this.lastSpeech = 0; this.wasSpeaking = false; this.nodStart = -9;
@@ -132,7 +133,7 @@ export class Timeline {
 
     // hand-picked moments
     let ev = null;
-    for (const e of EVENTS) if (t >= e[0] && t < e[0] + Math.max(e[2], e[3] ? 2.5 : 0)) ev = e;
+    for (const e of this.events) if (t >= e[0] && t < e[0] + Math.max(e[2], e[3] ? 2.5 : 0)) ev = e;
     if (ev) {
       const [t0, name, dur, text] = ev, age = t - t0;
       const a = Math.min(1, age / 0.12, (t0 + dur - t) / 0.35);
@@ -168,6 +169,17 @@ export class Timeline {
     st.pitch = this.headLook[1] * 0.16 + nod + pitchAdd + this.smMouth * 0.04;
     st.roll = Math.sin(t * 0.45) * 0.04 + tilt;
     st.bob = 0.025 * Math.sin(t * 2.1) - 0.05 * this.smMouth;
+    const f = this.face && mapFace(this.face, i);
+    if (f) {
+      // the tracked face drives head, eyes and mouth; reactions still add effects, bubbles, blush and hands
+      st.face = f;
+      st.yaw = f.yaw + Math.sin(t * 0.6) * 0.01;
+      st.pitch = f.pitch;
+      st.roll = f.roll;
+      st.mouth = f.mouthOpen;
+      st.bob = 0.02 * Math.sin(t * 2.1);
+      st.fx = st.fx.filter((x) => x.kind !== 'zzz');
+    }
     return st;
   }
 }

@@ -36,6 +36,17 @@ VRMUtils.rotateVRM0(vrm);
 vrm.scene.traverse((o) => { o.frustumCulled = false; });
 scene.add(vrm.scene);
 const B = (n) => vrm.humanoid.getNormalizedBoneNode(n);
+const faceMeshes = [];
+vrm.scene.traverse((o) => { const d = o.morphTargetDictionary; if (d && ('Fcl_EYE_Close' in d || 'jawOpen' in d)) faceMeshes.push(o); });
+const PERFECT_SYNC = faceMeshes.some((m) => 'jawOpen' in m.morphTargetDictionary && 'eyeLookInLeft' in m.morphTargetDictionary);
+function applyMorphs(face) {
+  const morphs = PERFECT_SYNC ? face.arkit : face.morphs;
+  for (const mesh of faceMeshes) {
+    const d = mesh.morphTargetDictionary, inf = mesh.morphTargetInfluences;
+    for (const k in d) inf[d[k]] = 0;
+    for (const k in morphs) if (k in d) inf[d[k]] = morphs[k];
+  }
+}
 const RAW = (n) => vrm.humanoid.getRawBoneNode(n);
 const em = vrm.expressionManager;
 const EXPR = ['happy', 'angry', 'sad', 'relaxed', 'surprised', 'aa', 'ih', 'ou', 'ee', 'oh', 'blink'];
@@ -131,6 +142,14 @@ function applyState(st) {
       if (st.hands === 'cover' || st.hands === 'chin') arm.hand.rotation.x = -0.6;
     }
   });
+  if (st.face) {
+    // perfect-sync models move the eyes with their eyeLook* shapes; others aim the eye bones
+    const [gx, gy] = PERFECT_SYNC ? [0, 0] : st.face.gaze;
+    lookTarget.position.set(H.x + gx * 0.6, H.y + 0.06 + gy * 0.4, H.z + 1.0);
+    vrm.update(DT);
+    applyMorphs(st.face);
+    return;
+  }
   // face
   const eyes = st.eyes;
   if (eyes === 'happy') em.setValue('happy', 1);
@@ -234,6 +253,19 @@ window.renderSheet = (states, cols, tile) => {
     if (st.bubble) drawBubble(c, st.bubble, hx - 60 * s / 0.62, dy + 34);
   });
   return sheet.toDataURL('image/png');
+};
+const big = document.createElement('canvas');
+const bctx = big.getContext('2d', { willReadFrequently: true });
+window.renderAvatarBatch = async (states, size) => {
+  big.width = big.height = size;
+  const all = new Uint8Array(size * size * 4 * states.length);
+  states.forEach((st, i) => {
+    bctx.fillStyle = '#2b2b33'; bctx.fillRect(0, 0, size, size);
+    const { hx, hy, s } = renderInto(bctx, st, 0, 0, size);
+    drawFx(bctx, st, hx, hy, s);
+    all.set(bctx.getImageData(0, 0, size, size).data, i * size * size * 4);
+  });
+  return toBase64(all);
 };
 window.OUT = { W: OUT_W, H: OUT_H };
 window.ready = true;

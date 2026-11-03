@@ -1,4 +1,5 @@
-// Edit preview: plays the source video through the edit plan in data/edit.json.
+// Highlight player and editor. Viewers get a simple player with sections and
+// "watch in full" for skipped parts; ?edit (or E) adds the editing tools.
 const $ = (id) => document.getElementById(id);
 const video = $("video"), stage = $("stage");
 const MAX_RATE = 16;          // browsers refuse playbackRate above 16
@@ -7,17 +8,21 @@ const CARD_SECONDS = 3.5;     // how long a section title stays on screen
 const ICON = {
   play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
   pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',
+  next: '<svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>',
   vol: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>',
   mute: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.8 1.7 1L11 21h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>',
   fs: '<svg viewBox="0 0 24 24"><path d="M5 5h5v2H7v3H5zm9 0h5v5h-2V7h-3zM5 14h2v3h3v2H5zm12 0h2v5h-5v-2h3z"/></svg>',
   fsExit: '<svg viewBox="0 0 24 24"><path d="M8 5h2v5H5V8h3zm6 0h2v3h3v2h-5zM5 14h5v5H8v-3H5zm9 0h5v2h-3v3h-2z"/></svg>',
 };
 
 let edit, zoom, words = [], lines = [], capLines = [];
 let pieces = [], total = 0, chapters = [];
-let baseRate = 1, ccOn = true, zoomOn = true, raw = false;
+let baseRate = 1, ccOn = true, zoomOn = true, raw = false, userMuted = false;
+let editing = new URLSearchParams(location.search).has("edit");
+const expanded = new Set();   // start times of skipped segments the viewer chose to watch
 let selected = 0, selRange = null, anchorLine = null;
-let followUntil = 0, curLine = -1, curWord = -1, lastJump = 0;
+let followUntil = 0, curLine = -1, curWord = -1, curChap = -1, lastJump = 0, toastTimer = null;
 const undoStack = [], redoStack = [];
 
 const fmt = (s) => {
@@ -25,13 +30,14 @@ const fmt = (s) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = String(s % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`;
 };
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const duration = () => video.duration || edit.segments.at(-1).e;
 function bsearch(arr, t, key = (x) => x.s) { // index of last item with key <= t, or -1
   let lo = 0, hi = arr.length - 1, ans = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (key(arr[m]) <= t) { ans = m; lo = m + 1; } else hi = m - 1; }
   return ans;
 }
+const isSkipped = (seg) => seg.mode !== "normal" && !expanded.has(seg.s);
 
 // ---- loading -------------------------------------------------------------
 async function load() {
@@ -47,11 +53,11 @@ async function load() {
     return { s: seg.s, e: seg.e, a, b: wi, text: seg.t.trim() };
   }).filter((l) => l.b > l.a || l.text);
   capLines = buildCaptionLines(words);
-  $("play").innerHTML = ICON.play; $("mute").innerHTML = ICON.vol; $("fs").innerHTML = ICON.fs;
-  buildRateMenu();
+  $("play").innerHTML = ICON.play; $("next").innerHTML = ICON.next; $("mute").innerHTML = ICON.vol;
+  $("gear").innerHTML = ICON.gear; $("fs").innerHTML = ICON.fs;
+  buildRates();
   syncSettings();
-  renderTranscript();
-  rebuild();
+  setEditing(editing);
   requestAnimationFrame(tick);
 }
 
@@ -85,8 +91,9 @@ function pausesIn(s, e) {
 function buildPlan() {
   pieces = [];
   edit.segments.forEach((seg, i) => {
-    if (seg.mode === "cut") return;
-    if (seg.mode === "fast") { pieces.push({ s: seg.s, e: seg.e, rate: seg.speed, kind: "fast", seg: i }); return; }
+    const mode = isSkipped(seg) ? seg.mode : "normal";
+    if (mode === "cut") return;
+    if (mode === "fast") { pieces.push({ s: seg.s, e: seg.e, rate: seg.speed, kind: "fast", seg: i }); return; }
     let t = seg.s;
     if (edit.autoSilence) for (const [a, b] of pausesIn(seg.s, seg.e)) {
       if (a > t) pieces.push({ s: t, e: a, rate: 1, kind: "normal", seg: i });
@@ -100,8 +107,8 @@ function buildPlan() {
   total = acc;
   chapters = edit.sections.map((s, i) => ({ ...s, i, es: editedOf(s.t) }))
     .filter((c, i, arr) => !arr[i + 1] || editedOf(arr[i + 1].t) > c.es + 0.5);
-  if (!chapters.length || chapters[0].es > 0) chapters.unshift({ t: 0, title: "Intro", es: 0, i: -1 });
-  chapters.forEach((c, i) => (c.ee = chapters[i + 1]?.es ?? total));
+  if (!chapters.length || chapters[0].es > 0.5) chapters.unshift({ t: 0, title: "Intro", es: 0, i: -1 });
+  chapters.forEach((c, i) => { c.ee = chapters[i + 1]?.es ?? total; c.te = chapters[i + 1]?.t ?? duration(); });
 }
 
 function pieceIndex(t) { // >=0: inside that piece; <0: -(index of next piece) - 1
@@ -133,7 +140,11 @@ function tick(now) {
     else {
       const n = -i - 1;
       if (n >= pieces.length) { if (!video.paused) video.pause(); }
-      else if (!video.paused) { video.currentTime = pieces[n].s; piece = pieces[n]; }
+      else if (!video.paused) {
+        const skipped = edit.segments.filter((s) => s.mode === "cut" && isSkipped(s) && s.e > t - 0.5 && s.s < pieces[n].s);
+        video.currentTime = pieces[n].s; piece = pieces[n];
+        if (skipped.length) showToast(skipped);
+      }
     }
   }
   const want = (piece ? piece.rate : 1) * baseRate;
@@ -150,26 +161,37 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
+function showToast(segs) {
+  const secs = segs.reduce((a, s) => a + s.e - s.s, 0);
+  $("toastText").textContent = `Skipped ${fmt(secs)}`;
+  $("toastBtn").onclick = (e) => { e.stopPropagation(); segs.forEach((s) => expanded.add(s.s)); rebuild(); seekSource(segs[0].s); $("toast").hidden = true; };
+  $("toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($("toast").hidden = true), 5000);
+}
+
 function drawOverlays(t, piece) {
   const banner = $("fastBanner");
-  if (piece && piece.kind === "fast") {
+  const fast = piece && piece.kind === "fast";
+  if (fast) {
     const seg = edit.segments[piece.seg];
     const html = `⏩ ${esc(seg.label || "Skipping ahead")}<span class="rate">${seg.speed}×</span>`;
-    if (banner.innerHTML !== html) banner.innerHTML = html;
+    if ($("fastText").innerHTML !== html) $("fastText").innerHTML = html;
+    banner.dataset.seg = piece.seg;
     banner.hidden = false;
+    $("toast").hidden = true;
   } else banner.hidden = true;
 
   const et = editedOf(t), card = $("sectionCard");
   const ch = raw ? null : chapters.find((c) => c.i >= 0 && et >= c.es && et < c.es + CARD_SECONDS);
-  if (ch && !(piece && piece.kind === "fast")) { if (card.textContent !== ch.title) { card.textContent = ch.title; card.hidden = true; } card.hidden = false; }
-  else card.hidden = true;
+  if (ch && !fast) { if (card.textContent !== ch.title) card.textContent = ch.title; card.hidden = false; } else card.hidden = true;
 
-  const cap = $("caption"), ci = bsearch(capLines, t + 0.1), cl = capLines[ci];
-  const show = ccOn && cl && t <= cl.e + 0.4 && !(piece && piece.kind === "fast");
+  const cap = $("caption"), cl = capLines[bsearch(capLines, t + 0.1)];
+  const show = ccOn && cl && t <= cl.e + 0.4 && !fast;
   if (show) { if (cap.textContent !== cl.text) cap.textContent = cl.text; cap.hidden = false; } else cap.hidden = true;
 
   let z = { x: 0, y: 0, w: 1, h: 1 };
-  if (zoomOn && !(piece && piece.kind === "fast")) { const k = zoom[bsearch(zoom, t, (k) => k.t)]; if (k) z = k; }
+  if (zoomOn && !fast) { const k = zoom[bsearch(zoom, t, (k) => k.t)]; if (k) z = k; }
   const tf = `scale(${1 / z.w}) translate(${-z.x * 100}%, ${-z.y * 100}%)`;
   if (video.style.transform !== tf) video.style.transform = tf;
 }
@@ -178,26 +200,28 @@ function drawProgress(t) {
   const et = editedOf(t);
   const timeText = `${fmt(et / baseRate)} / ${fmt(total / baseRate)}`;
   if ($("time").textContent !== timeText) $("time").textContent = timeText;
-  const playIcon = video.paused ? ICON.play : ICON.pause;
-  if ($("play").dataset.state !== String(video.paused)) { $("play").innerHTML = playIcon; $("play").dataset.state = String(video.paused); }
-  // chapter bar fill
-  const fills = $("chapters").children;
+  if ($("play").dataset.state !== String(video.paused)) { $("play").innerHTML = video.paused ? ICON.play : ICON.pause; $("play").dataset.state = String(video.paused); }
+  const fills = $("chapters").children, listBars = document.querySelectorAll(".chItem .bar i");
   chapters.forEach((c, i) => {
-    const f = Math.min(1, Math.max(0, (et - c.es) / Math.max(0.001, c.ee - c.es)));
-    const w = `${f * 100}%`;
+    const w = `${Math.min(1, Math.max(0, (et - c.es) / Math.max(0.001, c.ee - c.es))) * 100}%`;
     if (fills[i] && fills[i].firstChild.style.width !== w) fills[i].firstChild.style.width = w;
+    if (listBars[i] && listBars[i].style.width !== w) listBars[i].style.width = w;
   });
   if (!barDragging) $("barThumb").style.left = `${(et / total) * 100}%`;
-  const ch = chapters[bsearch(chapters, et, (c) => c.es)];
-  const name = ch ? `• ${ch.title}` : "";
-  if ($("chapterName").textContent !== name) $("chapterName").textContent = name;
-  $("playhead").style.left = `${(t / duration()) * 100}%`;
+  const ci = bsearch(chapters, et, (c) => c.es);
+  if (ci !== curChap) {
+    curChap = ci;
+    $("chapterName").textContent = chapters[ci] ? `• ${chapters[ci].title}` : "";
+    document.querySelector(".chItem.cur")?.classList.remove("cur");
+    document.querySelector(`.chItem[data-c="${ci}"]`)?.classList.add("cur");
+  }
+  if (editing) $("playhead").style.left = `${(t / duration()) * 100}%`;
   // transcript sync
   const li = lineAt(t);
   if (li !== curLine) {
     document.querySelector(".line.now")?.classList.remove("now");
     const el = lineEl(li);
-    if (el) { el.classList.add("now"); if (performance.now() > followUntil) scrollToLine(el); }
+    if (el) { el.classList.add("now"); if (performance.now() > followUntil && !$("transcriptTab").hidden) scrollToLine(el); }
     curLine = li;
     updateJumpButton();
   }
@@ -217,20 +241,49 @@ function rebuild() {
   zoom.sort((a, b) => a.t - b.t);
   selected = Math.min(selected, edit.segments.length - 1);
   buildPlan();
+  curChap = -1;
   renderChapterBar();
-  renderTimeline();
-  renderSegCard();
+  renderChapterList();
   renderChapterHeads();
   renderLineModes();
-  const by = { normal: 0, fast: 0, pause: 0 };
-  for (const p of pieces) by[p.kind] += (p.e - p.s) / p.rate;
-  $("lengths").innerHTML = `Edited <b>${fmt(total)}</b> of ${fmt(duration())} · normal ${fmt(by.normal)} · sped-up sections ${fmt(by.fast)} · sped-up pauses ${fmt(by.pause)}` +
-    (baseRate !== 1 ? ` · <b>${fmt(total / baseRate)}</b> at ${baseRate}×` : "");
+  if (editing) {
+    renderTimeline();
+    renderSegCard();
+    const by = { normal: 0, fast: 0, pause: 0 };
+    for (const p of pieces) by[p.kind] += (p.e - p.s) / p.rate;
+    $("lengths").innerHTML = `Edited <b>${fmt(total)}</b> of ${fmt(duration())} · normal ${fmt(by.normal)} · sped-up sections ${fmt(by.fast)} · sped-up pauses ${fmt(by.pause)}`;
+  }
+}
+
+function setEditing(on) {
+  editing = on;
+  document.body.classList.toggle("editing", on);
+  const u = new URL(location.href);
+  on ? u.searchParams.set("edit", "") : u.searchParams.delete("edit");
+  history.replaceState(null, "", u.toString().replace("edit=", "edit"));
+  selRange = null;
+  renderTranscript();
+  rebuild();
 }
 
 function renderChapterBar() {
   $("chapters").innerHTML = chapters.map((c) =>
     `<div class="chap" style="flex:${Math.max(0.001, c.ee - c.es)}"><div class="fill"></div></div>`).join("");
+}
+
+function renderChapterList() {
+  $("chapterList").innerHTML = chapters.map((c, ci) => {
+    const skips = edit.segments.map((s, i) => ({ ...s, i }))
+      .filter((s) => s.mode !== "normal" && s.e > c.t + 0.1 && s.s < c.te - 0.1)
+      .map((s) => {
+        const open = expanded.has(s.s);
+        const what = s.mode === "fast" ? `${esc(s.label || "Sped up")} · ${fmt(s.e - s.s)} at ${s.speed}×` : `Skipped ${fmt(s.e - s.s)}`;
+        return `<div class="skipRow${open ? " expanded" : ""}"><span class="ic">${s.mode === "fast" ? "⏩" : "✂"}</span><span class="lbl" title="${what}">${what}</span>` +
+          `<button data-expand="${s.s}">${open ? "Collapse" : "Watch in full"}</button></div>`;
+      }).join("");
+    return `<div class="chItem${ci === curChap ? " cur" : ""}" data-c="${ci}"><span class="ct">${fmt(c.es / baseRate)}</span><div>` +
+      `<div class="title">${esc(c.title)}</div><div class="meta">${fmt((c.ee - c.es) / baseRate)}</div>${skips}<div class="bar"><i></i></div></div></div>`;
+  }).join("");
 }
 
 function renderTimeline() {
@@ -268,6 +321,7 @@ function renderTranscript() {
       : esc(l.text);
     return `<div class="line" data-l="${i}"><span class="t">${fmt(l.s)}</span><span class="tx">${tx}</span></div>`;
   }).join("");
+  curLine = -1; curWord = -1;
 }
 const lineEl = (i) => document.querySelector(`.line[data-l="${i}"]`);
 
@@ -279,7 +333,9 @@ function renderChapterHeads() {
     if (!target) return;
     const h = document.createElement("div");
     h.className = "chapHead";
-    h.innerHTML = `<span class="ct" data-sec="${i}">${fmt(s.t)}</span><input data-sec="${i}" value="${esc(s.title)}" aria-label="Section title"><button class="icon del" data-delsec="${i}" title="Remove this section title">×</button>`;
+    h.innerHTML = editing
+      ? `<span class="ct" data-sec="${i}">${fmt(s.t)}</span><input data-sec="${i}" value="${esc(s.title)}" aria-label="Section title"><button class="icon del" data-delsec="${i}" title="Remove this section title">×</button>`
+      : `<span class="ct" data-sec="${i}">${fmt(editedOf(s.t))}</span><input value="${esc(s.title)}" readonly tabindex="-1" aria-label="Section title">`;
     target.before(h);
   });
 }
@@ -288,14 +344,16 @@ function renderLineModes() {
   lines.forEach((l, i) => {
     const el = lineEl(i);
     if (!el) return;
-    const mode = edit.segments[segAt(l.s + 0.05)].mode;
+    const seg = edit.segments[segAt(l.s + 0.05)];
     const sel = selRange && i >= selRange[0] && i <= selRange[1];
-    el.classList.toggle("normal", mode === "normal");
-    el.classList.toggle("fast", mode === "fast");
-    el.classList.toggle("cut", mode === "cut");
+    el.classList.toggle("normal", editing && seg.mode === "normal");
+    el.classList.toggle("fast", seg.mode === "fast");
+    el.classList.toggle("cut", seg.mode === "cut");
+    el.classList.toggle("expanded", seg.mode !== "normal" && expanded.has(seg.s));
     el.classList.toggle("sel", !!sel);
+    el.title = seg.mode === "normal" || !isSkipped(seg) || editing ? "" : "Skipped in the highlights. Click to watch it.";
   });
-  $("selBar").hidden = !selRange;
+  $("selBar").hidden = !selRange || !editing;
   if (selRange) {
     const [a, b] = selRange;
     const span = (lines[b + 1]?.s ?? lines[b].e) - lines[a].s;
@@ -310,7 +368,7 @@ function scrollToLine(el) {
 }
 function updateJumpButton() {
   const el = lineEl(curLine), box = $("transcript");
-  if (!el) { $("jumpNow").hidden = true; return; }
+  if (!el || $("transcriptTab").hidden) { $("jumpNow").hidden = true; return; }
   const y = el.offsetTop - box.offsetTop - box.scrollTop;
   $("jumpNow").hidden = y > 0 && y < box.clientHeight;
 }
@@ -365,6 +423,7 @@ function setRangeMode(a, b, mode) {
 }
 
 function applyMode(mode) {
+  if (!editing) return;
   if (selRange) {
     const [a, b] = selRange;
     const start = lines[a].s, end = lines[b + 1]?.s ?? lines[b].e;
@@ -415,8 +474,33 @@ function syncSettings() {
   $("silenceSpeed").value = edit.silenceSpeed;
 }
 
+// ---- viewer actions ----------------------------------------------------------
+function toggleExpand(start) {
+  expanded.has(start) ? expanded.delete(start) : expanded.add(start);
+  rebuild();
+}
+function expandCurrent() {
+  const i = pieceIndex(video.currentTime), p = pieces[i];
+  if (p && p.kind === "fast") toggleExpand(edit.segments[p.seg].s);
+}
+function gotoChapter(delta) {
+  const et = editedOf(video.currentTime);
+  let ci = bsearch(chapters, et, (c) => c.es);
+  if (delta < 0 && et - chapters[ci].es < 3) ci--;
+  else if (delta > 0) ci++;
+  const c = chapters[Math.max(0, Math.min(chapters.length - 1, ci))];
+  if (c) seekEdited(c.es + 0.05);
+}
+function showTab(id) {
+  for (const b of $("tabs").children) b.classList.toggle("active", b.dataset.tab === id);
+  $("chapterList").hidden = id !== "chapterList";
+  $("transcriptTab").hidden = id !== "transcriptTab";
+  if (id === "transcriptTab") { followUntil = 0; const el = lineEl(curLine); if (el) scrollToLine(el); }
+  else document.querySelector(".chItem.cur")?.scrollIntoView({ block: "nearest" });
+}
+
 // ---- player controls ---------------------------------------------------------
-let userMuted = false, idleTimer = null, barDragging = false;
+let idleTimer = null, barDragging = false;
 function flash(icon) {
   const b = $("bigIcon");
   b.hidden = true; void b.offsetWidth;
@@ -429,7 +513,7 @@ function togglePlay() {
 function poke() {
   stage.classList.remove("idle");
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => { if (!video.paused && !barDragging && $("rateMenu").hidden) stage.classList.add("idle"); }, 2500);
+  idleTimer = setTimeout(() => { if (!video.paused && !barDragging && $("menu").hidden) stage.classList.add("idle"); }, 2500);
 }
 function seekSource(t) {
   stage.classList.add("jump");
@@ -443,33 +527,30 @@ stage.addEventListener("mousemove", poke);
 stage.addEventListener("mouseleave", () => { if (!video.paused) stage.classList.add("idle"); });
 video.addEventListener("click", togglePlay);
 video.addEventListener("dblclick", () => $("fs").click());
-["fastBanner", "sectionCard", "caption"].forEach((id) => $(id).addEventListener("click", togglePlay));
+["sectionCard", "caption"].forEach((id) => $(id).addEventListener("click", togglePlay));
 video.addEventListener("pause", poke);
 $("play").onclick = togglePlay;
+$("next").onclick = () => gotoChapter(1);
+$("expandHere").onclick = (e) => { e.stopPropagation(); expandCurrent(); };
 $("mute").onclick = () => { userMuted = !userMuted; $("mute").innerHTML = userMuted ? ICON.mute : ICON.vol; };
 $("vol").oninput = (e) => { video.volume = +e.target.value; if (userMuted && video.volume > 0) $("mute").click(); };
 $("fs").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen());
 document.addEventListener("fullscreenchange", () => ($("fs").innerHTML = document.fullscreenElement ? ICON.fsExit : ICON.fs));
-const pill = (id, get, set) => ($(id).onclick = () => { set(!get()); $(id).classList.toggle("on", get()); });
-pill("cc", () => ccOn, (v) => (ccOn = v));
-pill("zoomBtn", () => zoomOn, (v) => (zoomOn = v));
-pill("rawBtn", () => raw, (v) => { raw = v; });
-$("chapterName").onclick = () => { followUntil = 0; const el = lineEl(curLine); if (el) scrollToLine(el); };
+$("cc").onclick = () => { ccOn = !ccOn; $("cc").classList.toggle("on", ccOn); };
+$("chapterName").onclick = () => showTab("chapterList");
+$("zoomChk").onchange = (e) => (zoomOn = e.target.checked);
+$("rawChk").onchange = (e) => (raw = e.target.checked);
 
-function buildRateMenu() {
-  $("rateMenu").innerHTML = [0.75, 1, 1.25, 1.5, 1.75, 2].map((r) =>
-    `<button data-rate="${r}" class="${r === baseRate ? "cur" : ""}">${r === 1 ? "Normal" : r + "×"}</button>`).join("");
+function buildRates() {
+  $("rates").innerHTML = [1, 1.25, 1.5, 2].map((r) => `<button data-rate="${r}" class="${r === baseRate ? "cur" : ""}">${r}×</button>`).join("");
 }
-$("rateBtn").onclick = (e) => { e.stopPropagation(); $("rateMenu").hidden = !$("rateMenu").hidden; };
-$("rateMenu").onclick = (e) => {
+$("rates").onclick = (e) => {
   const r = e.target.dataset.rate;
   if (!r) return;
-  baseRate = +r;
-  $("rateBtn").textContent = `${baseRate}×`;
-  buildRateMenu(); rebuild();
-  $("rateMenu").hidden = true;
+  baseRate = +r; buildRates(); rebuild();
 };
-document.addEventListener("click", (e) => { if (!$("rateWrap").contains(e.target)) $("rateMenu").hidden = true; });
+$("gear").onclick = (e) => { e.stopPropagation(); $("menu").hidden = !$("menu").hidden; };
+document.addEventListener("click", (e) => { if (!$("menuWrap").contains(e.target)) $("menu").hidden = true; });
 
 // chapter bar: hover preview and drag to scrub (edited time)
 const bar = $("chapterBar");
@@ -480,7 +561,7 @@ bar.addEventListener("pointermove", (e) => {
   const hv = $("barHover");
   hv.querySelector(".tt-title").textContent = chapters[ci]?.title ?? "";
   hv.querySelector(".tt-time").textContent = fmt(et / baseRate);
-  hv.style.left = `${Math.min(r.width - 80, Math.max(80, e.clientX - r.left))}px`;
+  hv.style.left = `${Math.min(r.width - 90, Math.max(90, e.clientX - r.left))}px`;
   hv.hidden = false;
   [...$("chapters").children].forEach((el, i) => el.classList.toggle("hover", i === ci));
   if (barDragging) { $("barThumb").style.left = `${(et / total) * 100}%`; seekEdited(et); }
@@ -489,20 +570,82 @@ bar.addEventListener("pointerleave", () => { $("barHover").hidden = true; docume
 bar.addEventListener("pointerdown", (e) => { barDragging = true; bar.classList.add("drag"); bar.setPointerCapture(e.pointerId); seekEdited(barTime(e)); });
 bar.addEventListener("pointerup", () => { barDragging = false; bar.classList.remove("drag"); });
 
-// ---- edit timeline: click to seek and select, drag boundaries ----------------
+// ---- sidebar -----------------------------------------------------------------
+for (const b of $("tabs").children) b.onclick = () => showTab(b.dataset.tab);
+$("chapterList").addEventListener("click", (e) => {
+  const x = e.target.dataset.expand;
+  if (x !== undefined) {
+    const start = +x;
+    toggleExpand(start);
+    if (expanded.has(start)) { seekSource(start); if (video.paused) video.play(); }
+    return;
+  }
+  const item = e.target.closest(".chItem");
+  if (item) seekEdited(chapters[+item.dataset.c].es + 0.05);
+});
+
+const box = $("transcript");
+box.addEventListener("wheel", () => (followUntil = performance.now() + 4000), { passive: true });
+box.addEventListener("scroll", updateJumpButton, { passive: true });
+$("jumpNow").onclick = () => { followUntil = 0; const el = lineEl(curLine); if (el) scrollToLine(el); };
+box.addEventListener("click", (e) => {
+  if (e.target.dataset.delsec) { mutate(() => edit.sections.splice(+e.target.dataset.delsec, 1)); return; }
+  if (e.target.classList.contains("ct")) { seekSource(edit.sections[+e.target.dataset.sec].t); return; }
+  const el = e.target.closest(".line");
+  if (!el) return;
+  const i = +el.dataset.l;
+  if (editing && e.shiftKey && anchorLine !== null) {
+    selRange = [Math.min(anchorLine, i), Math.max(anchorLine, i)];
+    window.getSelection()?.removeAllRanges();
+  } else {
+    selRange = editing && (e.metaKey || e.ctrlKey) ? [i, i] : null;
+    anchorLine = i;
+    const w = e.target.closest(".w");
+    const t = w ? words[+w.dataset.w].s : lines[i].s;
+    const seg = edit.segments[segAt(t)];
+    if (!editing && isSkipped(seg)) { expanded.add(seg.s); rebuild(); }
+    seekSource(t);
+    followUntil = performance.now() + 1500;
+  }
+  selected = segAt(lines[i].s + 0.05);
+  renderLineModes();
+  if (editing) { renderTimeline(); renderSegCard(); }
+});
+box.addEventListener("change", (e) => {
+  if (editing && e.target.dataset.sec !== undefined) mutate(() => (edit.sections[+e.target.dataset.sec].title = e.target.value));
+});
+box.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.target.blur(); });
+for (const b of $("selBar").querySelectorAll("[data-set]")) b.onclick = () => applyMode(b.dataset.set);
+$("selClear").onclick = () => { selRange = null; renderLineModes(); };
+$("selSection").onclick = () => {
+  const t = lines[selRange[0]].s;
+  mutate(() => edit.sections.push({ t, title: "New section" }));
+  selRange = null; renderLineModes();
+  const idx = edit.sections.findIndex((s) => s.t === t);
+  box.querySelector(`.chapHead input[data-sec="${idx}"]`)?.select();
+};
+$("search").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll("mark").forEach((m) => m.replaceWith(m.textContent));
+  lines.forEach((l, i) => {
+    const el = lineEl(i);
+    const hit = !q || words.slice(l.a, l.b).map((w) => w.w).join("").toLowerCase().includes(q) || l.text.toLowerCase().includes(q);
+    el.classList.toggle("hidden", !hit);
+    if (q && hit) el.querySelectorAll(".w").forEach((w) => { if (w.textContent.toLowerCase().includes(q)) w.innerHTML = `<mark>${esc(w.textContent)}</mark>`; });
+  });
+  document.querySelectorAll(".chapHead").forEach((h) => (h.hidden = !!q));
+  followUntil = q ? Infinity : 0;
+});
+
+// ---- edit pane -----------------------------------------------------------------
 const tl = $("timeline");
 const tlTime = (e) => { const r = tl.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * duration(); };
 let dragB = null, dragStart = null;
 tl.addEventListener("pointerdown", (e) => {
   const b = e.target.closest(".boundary");
-  if (b) {
-    dragB = +b.dataset.b; dragStart = snapshot();
-    b.classList.add("drag"); tl.setPointerCapture(e.pointerId);
-    return;
-  }
+  if (b) { dragB = +b.dataset.b; dragStart = snapshot(); b.classList.add("drag"); tl.setPointerCapture(e.pointerId); return; }
   const t = tlTime(e);
-  selected = segAt(t);
-  selRange = null;
+  selected = segAt(t); selRange = null;
   seekSource(t);
   renderTimeline(); renderSegCard(); renderLineModes();
 });
@@ -529,8 +672,6 @@ tl.addEventListener("pointerup", () => {
   dragB = null;
   normalize(); rebuild(); scheduleSave();
 });
-
-// ---- segment card ------------------------------------------------------------
 for (const b of $("modeBtns").children) b.onclick = () => { selRange = null; applyMode(b.dataset.mode); };
 $("segLabel").onchange = (e) => mutate(() => (edit.segments[selected].label = e.target.value));
 $("segSpeed").oninput = (e) => { $("segSpeedOut").textContent = `${e.target.value}×`; };
@@ -557,81 +698,31 @@ $("zoomDel").onclick = () => {
   if (i >= 0) mutate(() => zoom.splice(i, 1));
 };
 
-// ---- transcript sidebar ------------------------------------------------------
-const box = $("transcript");
-box.addEventListener("wheel", () => (followUntil = performance.now() + 4000), { passive: true });
-box.addEventListener("scroll", updateJumpButton, { passive: true });
-$("jumpNow").onclick = () => { followUntil = 0; const el = lineEl(curLine); if (el) scrollToLine(el); };
-box.addEventListener("click", (e) => {
-  if (e.target.dataset.delsec) { mutate(() => edit.sections.splice(+e.target.dataset.delsec, 1)); return; }
-  if (e.target.classList.contains("ct")) { seekSource(edit.sections[+e.target.dataset.sec].t); return; }
-  const el = e.target.closest(".line");
-  if (!el) return;
-  const i = +el.dataset.l;
-  if (e.shiftKey && anchorLine !== null) {
-    selRange = [Math.min(anchorLine, i), Math.max(anchorLine, i)];
-    window.getSelection()?.removeAllRanges();
-  } else {
-    selRange = (e.metaKey || e.ctrlKey) ? [i, i] : null;
-    anchorLine = i;
-    const w = e.target.closest(".w");
-    seekSource(w ? words[+w.dataset.w].s : lines[i].s);
-    followUntil = performance.now() + 1500;
-  }
-  selected = segAt(lines[i].s + 0.05);
-  renderTimeline(); renderSegCard(); renderLineModes();
-});
-box.addEventListener("change", (e) => {
-  if (e.target.dataset.sec !== undefined) mutate(() => (edit.sections[+e.target.dataset.sec].title = e.target.value));
-});
-box.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.target.blur(); });
-for (const b of $("selBar").querySelectorAll("[data-set]")) b.onclick = () => applyMode(b.dataset.set);
-$("selClear").onclick = () => { selRange = null; renderLineModes(); };
-$("selSection").onclick = () => {
-  const t = lines[selRange[0]].s;
-  mutate(() => edit.sections.push({ t, title: "New section" }));
-  selRange = null; renderLineModes();
-  const idx = edit.sections.findIndex((s) => s.t === t);
-  box.querySelector(`.chapHead input[data-sec="${idx}"]`)?.select();
-};
-$("search").addEventListener("input", (e) => {
-  const q = e.target.value.trim().toLowerCase();
-  document.querySelectorAll("mark").forEach((m) => m.replaceWith(m.textContent));
-  lines.forEach((l, i) => {
-    const el = lineEl(i);
-    const hit = !q || (l.text + " " + words.slice(l.a, l.b).map((w) => w.w).join("")).toLowerCase().includes(q);
-    el.classList.toggle("hidden", !hit);
-    if (q && hit) el.querySelectorAll(".w").forEach((w) => { if (w.textContent.toLowerCase().includes(q)) w.innerHTML = `<mark>${esc(w.textContent)}</mark>`; });
-  });
-  document.querySelectorAll(".chapHead").forEach((h) => (h.hidden = !!q));
-  followUntil = q ? Infinity : 0;
-});
-
 // ---- keyboard ------------------------------------------------------------------
 $("undo").onclick = () => restore(undoStack, redoStack);
 $("redo").onclick = () => restore(redoStack, undoStack);
+$("editBtn").onclick = () => setEditing(!editing);
 $("helpBtn").onclick = () => ($("help").hidden = false);
 $("help").onclick = () => ($("help").hidden = true);
 document.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? restore(redoStack, undoStack) : restore(undoStack, redoStack); return; }
-  if (mod && e.key === "s") { e.preventDefault(); scheduleSave(); return; }
-  if (e.target.matches("input[type=text], input[type=search], input[type=number]")) {
-    if (e.key === "Escape") e.target.blur();
-    return;
-  }
+  if (editing && mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? restore(redoStack, undoStack) : restore(undoStack, redoStack); return; }
+  if (e.target.matches("input[type=text], input[type=search], input[type=number]")) { if (e.key === "Escape") e.target.blur(); return; }
   if (mod || e.altKey) return;
   const k = e.key.toLowerCase();
   const act = {
     " ": togglePlay, k: togglePlay,
-    arrowleft: () => seekSource(video.currentTime - (e.shiftKey ? 30 : 5)),
-    arrowright: () => seekSource(video.currentTime + (e.shiftKey ? 30 : 5)),
+    arrowleft: () => seekSource(video.currentTime - 5), arrowright: () => seekSource(video.currentTime + 5),
     j: () => seekSource(video.currentTime - 10), l: () => seekSource(video.currentTime + 10),
-    1: () => applyMode("normal"), 2: () => applyMode("fast"), 3: () => applyMode("cut"),
-    s: () => $("split").click(), c: () => $("cc").click(), z: () => $("zoomBtn").click(),
-    u: () => $("rawBtn").click(), f: () => $("fs").click(), m: () => $("mute").click(),
+    n: () => e.shiftKey && gotoChapter(1), p: () => e.shiftKey && gotoChapter(-1),
+    x: expandCurrent,
+    c: () => $("cc").click(), f: () => $("fs").click(), m: () => $("mute").click(),
+    z: () => { $("zoomChk").checked = zoomOn = !zoomOn; },
+    u: () => { $("rawChk").checked = raw = !raw; },
+    e: () => setEditing(!editing),
     "?": () => ($("help").hidden = !$("help").hidden),
-    escape: () => { $("help").hidden = true; selRange = null; renderLineModes(); },
+    escape: () => { $("help").hidden = true; $("menu").hidden = true; selRange = null; renderLineModes(); },
+    ...(editing ? { 1: () => applyMode("normal"), 2: () => applyMode("fast"), 3: () => applyMode("cut"), s: () => $("split").click() } : {}),
   }[k];
   if (act) { e.preventDefault(); act(); }
 });
