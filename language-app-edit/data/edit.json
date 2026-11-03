@@ -1,0 +1,233 @@
+{
+ "autoSilence": true,
+ "silenceMin": 1.5,
+ "silenceSpeed": 8,
+ "segments": [
+  {
+   "s": 0.0,
+   "e": 107.52,
+   "mode": "normal"
+  },
+  {
+   "s": 107.52,
+   "e": 155.8,
+   "mode": "fast",
+   "speed": 5,
+   "label": "Same setup for the second idea"
+  },
+  {
+   "s": 155.8,
+   "e": 415,
+   "mode": "normal"
+  },
+  {
+   "s": 415,
+   "e": 591.87,
+   "mode": "fast",
+   "speed": 18,
+   "label": "Writing the README and splitting the work"
+  },
+  {
+   "s": 591.87,
+   "e": 679.74,
+   "mode": "normal"
+  },
+  {
+   "s": 679.74,
+   "e": 747.71,
+   "mode": "fast",
+   "speed": 7,
+   "label": "Dictating the channel instructions"
+  },
+  {
+   "s": 747.71,
+   "e": 792.51,
+   "mode": "normal"
+  },
+  {
+   "s": 792.51,
+   "e": 859.08,
+   "mode": "fast",
+   "speed": 7,
+   "label": "Answering Claude's questions"
+  },
+  {
+   "s": 859.08,
+   "e": 1066.26,
+   "mode": "normal"
+  },
+  {
+   "s": 1066.26,
+   "e": 1287.23,
+   "mode": "fast",
+   "speed": 22,
+   "label": "Dictating the German reading brief"
+  },
+  {
+   "s": 1287.23,
+   "e": 1375.36,
+   "mode": "normal"
+  },
+  {
+   "s": 1375.36,
+   "e": 1537.95,
+   "mode": "fast",
+   "speed": 16,
+   "label": "Approving the tracking plan"
+  },
+  {
+   "s": 1537.95,
+   "e": 1605.7,
+   "mode": "normal"
+  },
+  {
+   "s": 1605.7,
+   "e": 1992.63,
+   "mode": "fast",
+   "speed": 39,
+   "label": "Permissions, iPhone Screen Time and a payment rant"
+  },
+  {
+   "s": 1992.63,
+   "e": 2041.76,
+   "mode": "normal"
+  },
+  {
+   "s": 2041.76,
+   "e": 2110.99,
+   "mode": "fast",
+   "speed": 7,
+   "label": "Waiting on tests"
+  },
+  {
+   "s": 2110.99,
+   "e": 2166.73,
+   "mode": "normal"
+  },
+  {
+   "s": 2166.73,
+   "e": 2465.76,
+   "mode": "fast",
+   "speed": 30,
+   "label": "Phonetics research and a detour into another project"
+  },
+  {
+   "s": 2465.76,
+   "e": 2628.08,
+   "mode": "normal"
+  },
+  {
+   "s": 2628.08,
+   "e": 2657.13,
+   "mode": "fast",
+   "speed": 4,
+   "label": "Running out of German"
+  },
+  {
+   "s": 2657.13,
+   "e": 2745,
+   "mode": "normal"
+  },
+  {
+   "s": 2745,
+   "e": 2859.61,
+   "mode": "fast",
+   "speed": 11,
+   "label": "Dictating the anime and voice brief"
+  },
+  {
+   "s": 2859.61,
+   "e": 2915.6,
+   "mode": "fast",
+   "speed": 6,
+   "label": "Picking voice models"
+  },
+  {
+   "s": 2915.6,
+   "e": 2932.34,
+   "mode": "normal"
+  },
+  {
+   "s": 2932.34,
+   "e": 2995.46,
+   "mode": "fast",
+   "speed": 6,
+   "label": "Writing the full-app brief"
+  },
+  {
+   "s": 2995.46,
+   "e": 3031.85,
+   "mode": "normal"
+  },
+  {
+   "s": 3031.85,
+   "e": 3156.77,
+   "mode": "fast",
+   "speed": 12,
+   "label": "Letting the agents run"
+  },
+  {
+   "s": 3156.77,
+   "e": 3172.89,
+   "mode": "normal"
+  },
+  {
+   "s": 3172.89,
+   "e": 3281.1,
+   "mode": "fast",
+   "speed": 11,
+   "label": "Waiting, and fighting an artifact export"
+  },
+  {
+   "s": 3281.1,
+   "e": 3334.27,
+   "mode": "normal"
+  }
+ ],
+ "sections": [
+  {
+   "t": 0.0,
+   "title": "Two ideas, two Claude sessions"
+  },
+  {
+   "t": 99.45,
+   "title": "What does the evidence say?"
+  },
+  {
+   "t": 255.41,
+   "title": "Reality check: five devices to track"
+  },
+  {
+   "t": 591.87,
+   "title": "Let a model label the channels"
+  },
+  {
+   "t": 859.08,
+   "title": "What do I actually want?"
+  },
+  {
+   "t": 1287.23,
+   "title": "Tracking: what's possible"
+  },
+  {
+   "t": 1992.63,
+   "title": "Test on the other Mac"
+  },
+  {
+   "t": 2110.99,
+   "title": "A nicer reader"
+  },
+  {
+   "t": 2465.76,
+   "title": "Reading German for the first time"
+  },
+  {
+   "t": 2707.4,
+   "title": "Anime clips and pronunciation feedback"
+  },
+  {
+   "t": 3281.1,
+   "title": "Wrap-up"
+  }
+ ]
+}
