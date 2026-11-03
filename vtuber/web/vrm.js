@@ -33,6 +33,42 @@ const vrm = gltf.userData.vrm;
 VRMUtils.removeUnnecessaryVertices(gltf.scene);
 VRMUtils.combineSkeletons(gltf.scene);
 VRMUtils.rotateVRM0(vrm);
+// outfit: wear another VRoid model's body and clothes, rebound onto this model's skeleton by bone name
+const OUTFIT = params.get('outfit') ?? (MODEL === 'PS_Female' ? 'AvatarSample_A' : '');
+if (OUTFIT) {
+  const og = await loader.loadAsync(`/build/models/${OUTFIT}.vrm`);
+  VRMUtils.removeUnnecessaryVertices(og.scene);
+  const nodes = {};
+  vrm.scene.traverse((o) => { if (o.isBone || o.type === 'Object3D' || o.type === 'Bone') nodes[o.name] = o; });
+  // bones only the outfit has (hood, strings) are copied in with their local rest transform
+  const mapBone = (b) => {
+    if (nodes[b.name]) return nodes[b.name];
+    const parent = mapBone(b.parent);
+    const c = new THREE.Bone(); c.name = b.name;
+    c.position.copy(b.position); c.quaternion.copy(b.quaternion); c.scale.copy(b.scale);
+    parent.add(c); nodes[b.name] = c;
+    return c;
+  };
+  const matName = (o) => [o.material].flat()[0].name;
+  const wear = [];
+  og.scene.traverse((o) => { if (o.isSkinnedMesh && /Body|CLOTH/.test(matName(o)) && !/HAIR/.test(matName(o))) wear.push(o); });
+  // hide this model's own body and clothes, keep its back hair
+  vrm.scene.traverse((o) => { if (o.isSkinnedMesh && !o.morphTargetDictionary && /Body_00_SKIN|CLOTH/.test(matName(o))) o.visible = false; });
+  for (const m of wear) {
+    const bones = m.skeleton.bones.map(mapBone);
+    m.removeFromParent();
+    vrm.scene.add(m);
+    m.bind(new THREE.Skeleton(bones, m.skeleton.boneInverses), m.bindMatrix);
+  }
+}
+// hair tint: the perfect-sync base ships with grey hair; a soft chestnut matches the outfit
+const HAIR = params.get('hair') ?? (MODEL === 'PS_Female' ? 'b8977f' : '');
+if (HAIR) vrm.scene.traverse((o) => {
+  if (o.isMesh) for (const m of [o.material].flat()) if (/HAIR/.test(m.name) && !/Outline/.test(m.name)) {
+    m.color?.set(`#${HAIR}`).convertSRGBToLinear?.();
+    m.shadeColorFactor?.set(`#${HAIR}`).multiplyScalar(0.55);
+  }
+});
 vrm.scene.traverse((o) => { o.frustumCulled = false; });
 scene.add(vrm.scene);
 const B = (n) => vrm.humanoid.getNormalizedBoneNode(n);
@@ -113,6 +149,8 @@ const sim = { vowel: 'aa', vowelUntil: 0, init: false };
 function applyState(st) {
   const t = st.t;
   for (const n of EXPR) em.setValue(n, 0);
+  // ARKit shapes aren't bound to any preset expression, so nothing else resets them between frames
+  for (const mesh of faceMeshes) for (const k in mesh.morphTargetDictionary) if (!k.startsWith('Fcl_')) mesh.morphTargetInfluences[mesh.morphTargetDictionary[k]] = 0;
   // head and body
   const { yaw, pitch, roll } = st;
   B('spine').rotation.set(pitch * 0.1, yaw * 0.2, roll * 0.2);
@@ -177,6 +215,11 @@ function applyState(st) {
   const [lx, ly] = st.eyeLook;
   lookTarget.position.set(H.x + lx * 0.6, H.y + 0.06 - ly * 0.4, H.z + 1.0);
   vrm.update(DT);
+  // extra ARKit shapes on top of the preset expressions (perfect-sync models only)
+  if (st.arkit) for (const mesh of faceMeshes) {
+    const d = mesh.morphTargetDictionary, inf = mesh.morphTargetInfluences;
+    for (const k in st.arkit) if (k in d) inf[d[k]] = Math.min(1, inf[d[k]] + st.arkit[k]);
+  }
 }
 
 function project(p) { const v = p.clone().project(camera); return [(v.x + 1) / 2, (1 - v.y) / 2]; }
