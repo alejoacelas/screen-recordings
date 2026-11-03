@@ -141,7 +141,8 @@ const HAND_POSES = {
   cover: [[0.035, 0.0, 0.13], [-0.035, -0.005, 0.13]],
   up: [[0.17, -0.05, 0.1], [-0.17, -0.05, 0.1]],
   wave: [null, [-0.2, 0.06, 0.06]],
-  chin: [null, [-0.02, -0.05, 0.11]],
+  chin: [null, [-0.035, -0.15, 0.075]],   // hand under the chin, face visible
+  shh: [null, [-0.01, -0.1, 0.1]],        // hand over the mouth
 };
 
 // ---------------------------------------------------------------- per-frame application
@@ -178,7 +179,7 @@ function applyState(st) {
     if (arm.cur.distanceTo(restHand) > 0.01) {
       solveArm(arm, arm.cur, new THREE.Vector3(arm.sd * 0.6, -1, -0.4));
       if (st.hands === 'wave' && arm.side === 'right') arm.hand.rotation.z = Math.sin(t * 11) * 0.5;
-      if (st.hands === 'cover' || st.hands === 'chin') arm.hand.rotation.x = -0.6;
+      if (st.hands === 'cover' || st.hands === 'chin' || st.hands === 'shh') arm.hand.rotation.x = -0.6;
     }
   });
   if (st.face) {
