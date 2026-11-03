@@ -150,10 +150,11 @@ function tick(now) {
   const want = (piece ? piece.rate : 1) * baseRate;
   const rate = Math.min(want, MAX_RATE);
   if (Math.abs(video.playbackRate - rate) > 0.01) video.playbackRate = rate;
-  if (!video.paused && want > MAX_RATE && now - lastJump > 250) {
-    lastJump = now;
-    video.currentTime = Math.min(piece.e, t + (want - MAX_RATE) * 0.25);
-  }
+  // Above 16x, add forward jumps on top of 16x playback, sized by the real time since the last jump.
+  if (!video.paused && want > MAX_RATE && !video.seeking) {
+    const dt = Math.min(1, (now - lastJump) / 1000);
+    if (dt >= 0.2) { lastJump = now; video.currentTime = Math.min(piece.e, t + (want - MAX_RATE) * dt); }
+  } else if (want <= MAX_RATE) lastJump = now;
   const quiet = !!piece && piece.rate > 1;
   if (video.muted !== (userMuted || quiet)) video.muted = userMuted || quiet;
   drawOverlays(t, piece);
@@ -547,7 +548,10 @@ function buildRates() {
 $("rates").onclick = (e) => {
   const r = e.target.dataset.rate;
   if (!r) return;
-  baseRate = +r; buildRates(); rebuild();
+  e.stopPropagation();
+  baseRate = +r;
+  for (const b of $("rates").children) b.classList.toggle("cur", +b.dataset.rate === baseRate);
+  rebuild();
 };
 $("gear").onclick = (e) => { e.stopPropagation(); $("menu").hidden = !$("menu").hidden; };
 document.addEventListener("click", (e) => { if (!$("menuWrap").contains(e.target)) $("menu").hidden = true; });

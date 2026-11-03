@@ -7,8 +7,12 @@ words = json.load(open(WORDS))["words"]
 # (start "m:ss", mode, label-for-speed-ups); each segment ends where the next starts.
 PLAN = [
     ("0:00", "normal", ""),
+    ("1:46", "fast", "Same setup for the second idea"),
+    ("2:30", "normal", ""),
     ("6:55", "fast", "Writing the README and splitting the work"),
     ("9:55", "normal", ""),
+    ("11:24", "fast", "Dictating the channel instructions"),
+    ("12:28", "normal", ""),
     ("13:10", "fast", "Answering Claude's questions"),
     ("14:16", "normal", ""),
     ("17:47", "fast", "Dictating the German reading brief"),
@@ -21,6 +25,9 @@ PLAN = [
     ("35:13", "normal", ""),
     ("36:05", "fast", "Phonetics research and a detour into another project"),
     ("41:10", "normal", ""),
+    ("43:44", "fast", "Running out of German"),
+    ("44:22", "normal", ""),
+    ("45:45", "fast", "Dictating the anime and voice brief"),
     ("47:40", "fast", "Picking voice models"),
     ("48:41", "normal", ""),
     ("48:52", "fast", "Writing the full-app brief"),
@@ -74,7 +81,7 @@ for i, (_, mode, label) in enumerate(PLAN):
         seg.update(speed=max(4, round((e - s) / 10)), label=label)
     segments.append(seg)
 edit = {
-    "autoSilence": True, "silenceMin": 2.5, "silenceSpeed": 6,
+    "autoSilence": True, "silenceMin": 1.5, "silenceSpeed": 8,
     "segments": segments,
     "sections": [{"t": snap(sec(t)), "title": title} for t, title in SECTIONS],
 }
