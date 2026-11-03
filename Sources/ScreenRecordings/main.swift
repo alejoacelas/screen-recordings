@@ -1,6 +1,6 @@
 import AppKit
 
-// `ScreenRecordings --process <recording folder>` rebuilds final.mp4 without opening the app.
+// `Rec --process <recording folder>` rebuilds final.mp4 without opening the app.
 let args = CommandLine.arguments
 if let i = args.firstIndex(of: "--process"), i + 1 < args.count {
     do {

@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "ScreenRecordings",
+    name: "Rec",
     platforms: [.macOS(.v15)],
     targets: [
-        .executableTarget(name: "ScreenRecordings", path: "Sources/ScreenRecordings")
+        .executableTarget(name: "Rec", path: "Sources/ScreenRecordings")
     ],
     swiftLanguageModes: [.v5]
 )

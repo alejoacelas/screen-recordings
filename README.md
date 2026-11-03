@@ -1,4 +1,4 @@
-# Screen Recordings
+# Rec
 
 A menu bar app for macOS 15+ that records your screen, system audio, microphone and camera. The camera is never shown on screen while you record. When you stop, the app adds it as a round bubble in the top-right corner and opens the result in Finder.
 

@@ -16,7 +16,7 @@ Scope: tools for making screen recordings.
 
 - `Recorder.swift`: each segment, meaning the stretch between start, pause, resume and stop, gets its own `SCStream` screen file and camera file under `segments/`. Each file records the `CACurrentMediaTime()` at which it started writing into `manifest.json`. A new stream per segment is required: on macOS 26 `recordingOutputDidFinishRecording` never fires, so the code waits for `stopCapture()` to return instead.
 - `Processor.swift`: ffmpeg lines up each screen and camera pair on whichever file started later, trims both to the same length, concatenates the segments, overlays the bubble and mixes system audio with the mic into `final.mp4`. ffmpeg must be at `/opt/homebrew/bin`.
-- `ScreenRecordings --process <recording folder>` (the binary inside the app) rebuilds `final.mp4`. Use it after changing the bubble settings.
+- `Rec.app/Contents/MacOS/Rec --process <recording folder>` rebuilds `final.mp4`. Use it after changing the bubble settings.
 
 ## Testing
 

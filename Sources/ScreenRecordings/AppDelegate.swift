@@ -99,7 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .processing, .starting, .transitioning: symbol = "hourglass.circle"
         case .idle: symbol = "record.circle"
         }
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Screen Recordings")
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Rec")
         button.contentTintColor = state == .recording ? .systemRed : nil
         button.title = (state == .recording || state == .paused) ? " " + format(recorder.elapsed) : ""
         button.imagePosition = .imageLeading
