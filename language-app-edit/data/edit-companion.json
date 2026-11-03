@@ -1,0 +1,128 @@
+{
+ "title": "Building a language-learning app with Claude Code",
+ "autoSilence": true,
+ "silenceMin": 1.5,
+ "silenceSpeed": 8,
+ "segments": [
+  {
+   "s": 0.0,
+   "e": 11.26,
+   "mode": "normal"
+  },
+  {
+   "s": 11.26,
+   "e": 99.45,
+   "mode": "fast",
+   "speed": 10,
+   "label": "Meanwhile: starting the Chinese tracker",
+   "autoSpeed": true
+  },
+  {
+   "s": 99.45,
+   "e": 255.41,
+   "mode": "normal"
+  },
+  {
+   "s": 255.41,
+   "e": 859.08,
+   "mode": "fast",
+   "speed": 60,
+   "label": "Meanwhile: the Chinese tracker",
+   "autoSpeed": true
+  },
+  {
+   "s": 859.08,
+   "e": 1287.23,
+   "mode": "normal"
+  },
+  {
+   "s": 1287.23,
+   "e": 2110.99,
+   "mode": "fast",
+   "speed": 60,
+   "label": "Meanwhile: the Chinese tracker",
+   "autoSpeed": true
+  },
+  {
+   "s": 2110.99,
+   "e": 2313.16,
+   "mode": "normal"
+  },
+  {
+   "s": 2313.16,
+   "e": 2465.76,
+   "mode": "fast",
+   "speed": 17,
+   "label": "Detour: starting another project",
+   "autoSpeed": true
+  },
+  {
+   "s": 2465.76,
+   "e": 3197.25,
+   "mode": "normal"
+  },
+  {
+   "s": 3197.25,
+   "e": 3281.1,
+   "mode": "fast",
+   "speed": 9,
+   "label": "Fighting an artifact export (another project)",
+   "autoSpeed": true
+  },
+  {
+   "s": 3281.1,
+   "e": 3334.27,
+   "mode": "normal"
+  }
+ ],
+ "sections": [
+  {
+   "t": 0.0,
+   "title": "Intro"
+  },
+  {
+   "t": 99.45,
+   "title": "The idea: an evidence-based language app"
+  },
+  {
+   "t": 859.08,
+   "title": "What does the evidence say?"
+  },
+  {
+   "t": 901.52,
+   "title": "What do I actually want?"
+  },
+  {
+   "t": 1066.26,
+   "title": "The brief: German reading and pronunciation"
+  },
+  {
+   "t": 2110.99,
+   "title": "A nicer reader"
+  },
+  {
+   "t": 2239.02,
+   "title": "Pronunciation feedback and sign-in"
+  },
+  {
+   "t": 2465.76,
+   "title": "Reading German for the first time"
+  },
+  {
+   "t": 2693.01,
+   "title": "Anime clips and voice models"
+  },
+  {
+   "t": 2950.33,
+   "title": "Build the whole app"
+  },
+  {
+   "t": 3156.77,
+   "title": "Let it run"
+  },
+  {
+   "t": 3281.1,
+   "title": "Wrap-up"
+  }
+ ]
+}

@@ -151,7 +151,6 @@ input[type=range] { accent-color: var(--accent); }
 .line .t { font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; padding-top: 1px; }
 .line.normal { border-left-color: var(--normal); }
 .line.fast { border-left-color: var(--fast); color: var(--muted); }
-.line.fast .t::after { content: " ⏩"; }
 .line.cut { border-left-color: var(--cut); color: var(--muted); }
 .line.cut .tx { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .line.now { background: var(--now); }
@@ -178,7 +177,7 @@ body:not(.editing) .edit-only { display: none !important; }
 .pillBtn { border-radius: 999px; padding: 4px 14px; font-weight: 600; font-size: 13px; }
 body.editing #editBtn { background: var(--accent); color: #fff; }
 body:not(.editing) #layout { grid-template-columns: minmax(0, 1fr) 380px; }
-body:not(.editing) #stage { max-width: calc((100vh - 52px - 32px) * 1658 / 1078); }
+body:not(.editing) #stage { max-width: calc((100vh - 52px - 90px) * 1658 / 1078); }
 
 /* banner + toast actions */
 #fastBanner button, #toast button { background: rgba(255,255,255,.16); color: #fff; border: 0; border-radius: 999px; font-size: .62em; padding: .45em 1em; font-weight: 600; }
@@ -186,15 +185,6 @@ body:not(.editing) #stage { max-width: calc((100vh - 52px - 32px) * 1658 / 1078)
 #toast { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: .7em; background: rgba(15,15,17,.85); color: #fff; padding: .4em .5em .4em 1.1em; border-radius: 999px; font-size: clamp(12px, 1.6vw, 18px); animation: slideDown .3s ease-out; }
 @keyframes slideDown { from { transform: translate(-50%, -12px); opacity: 0; } }
 
-/* settings menu */
-#menuWrap { position: relative; }
-#menu { position: absolute; bottom: 44px; right: 0; width: 290px; background: rgba(28,28,30,.97); border-radius: 12px; padding: 8px 0; box-shadow: 0 8px 30px rgba(0,0,0,.45); font-size: 13px; }
-.mRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 16px; cursor: pointer; }
-.mRow:hover { background: rgba(255,255,255,.06); }
-.mRow input { accent-color: var(--red); width: 16px; height: 16px; }
-#rates { display: flex; gap: 2px; }
-#rates button { background: none; border: 0; color: #ddd; padding: 3px 7px; border-radius: 6px; font-size: 12px; }
-#rates button.cur { background: #fff; color: #000; }
 
 /* sidebar tabs */
 #tabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--line); }
@@ -233,3 +223,20 @@ body:not(.editing) #stage { max-width: calc((100vh - 52px - 32px) * 1658 / 1078)
   body:not(.editing) #stage, #stage { max-width: none; }
   .ctl.text { display: none; }
 }
+#videos a { color: var(--muted); text-decoration: none; border-radius: 8px; padding: 4px 11px; font-size: 13px; white-space: nowrap; }
+#videos a.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+#topbar h1 { min-width: 0; }
+@media (max-width: 1000px) { #topbar h1 { display: none; } }
+
+/* settings bar under the player */
+#viewBar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; width: 100%; max-width: inherit; align-self: center; font-size: 13px; color: var(--muted); margin-top: -4px; }
+body:not(.editing) #viewBar { max-width: calc((100vh - 52px - 90px) * 1658 / 1078); }
+.vgroup { display: flex; align-items: center; gap: 8px; }
+.vlabel { font-weight: 600; }
+#rates button { padding: 3px 10px; font-size: 12px; color: var(--muted); }
+#rates button.active { color: var(--ink); }
+.switch { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--ink); }
+.switch input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.muted { color: var(--muted); margin-left: 4px; }
+
+#avatar { position: absolute; pointer-events: none; }

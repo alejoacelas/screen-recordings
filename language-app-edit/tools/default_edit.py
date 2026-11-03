@@ -1,55 +1,81 @@
-"""Write the default edit (data/edit.json), snapping each boundary to the nearest pause between words."""
-import json, sys
+"""Write the default edits (data/edit-tracker.json, data/edit-companion.json).
 
-WORDS, OUT, DURATION = sys.argv[1], sys.argv[2], float(sys.argv[3])
+Each boundary snaps to the nearest pause between words.
+Usage: python3 tools/default_edit.py data/words.json data/ 3334.27
+"""
+import json, os, sys
+
+WORDS, OUT_DIR, DURATION = sys.argv[1], sys.argv[2], float(sys.argv[3])
 words = json.load(open(WORDS))["words"]
 
-# (start "m:ss", mode, label-for-speed-ups); each segment ends where the next starts.
-PLAN = [
-    ("0:00", "normal", ""),
-    ("1:46", "fast", "Same setup for the second idea"),
-    ("2:30", "normal", ""),
-    ("6:55", "fast", "Writing the README and splitting the work"),
-    ("9:55", "normal", ""),
-    ("11:24", "fast", "Dictating the channel instructions"),
-    ("12:28", "normal", ""),
-    ("13:10", "fast", "Answering Claude's questions"),
-    ("14:16", "normal", ""),
-    ("17:47", "fast", "Dictating the German reading brief"),
-    ("21:32", "normal", ""),
-    ("22:55", "fast", "Approving the tracking plan"),
-    ("25:39", "normal", ""),
-    ("26:40", "fast", "Permissions, iPhone Screen Time and a payment rant"),
-    ("33:14", "normal", ""),
-    ("34:02", "fast", "Waiting on tests"),
-    ("35:13", "normal", ""),
-    ("36:05", "fast", "Phonetics research and a detour into another project"),
-    ("41:10", "normal", ""),
-    ("43:44", "fast", "Running out of German"),
-    ("44:22", "normal", ""),
-    ("45:45", "fast", "Dictating the anime and voice brief"),
-    ("47:40", "fast", "Picking voice models"),
-    ("48:41", "normal", ""),
-    ("48:52", "fast", "Writing the full-app brief"),
-    ("50:15", "normal", ""),
-    ("50:32", "fast", "Letting the agents run"),
-    ("52:40", "normal", ""),
-    ("52:54", "fast", "Waiting, and fighting an artifact export"),
-    ("54:48", "normal", ""),
-]
-SECTIONS = [
-    ("0:00", "Two ideas, two Claude sessions"),
-    ("1:40", "What does the evidence say?"),
-    ("4:15", "Reality check: five devices to track"),
-    ("9:55", "Let a model label the channels"),
-    ("14:16", "What do I actually want?"),
-    ("21:32", "Tracking: what's possible"),
-    ("33:14", "Test on the other Mac"),
-    ("35:13", "A nicer reader"),
-    ("41:10", "Reading German for the first time"),
-    ("45:05", "Anime clips and pronunciation feedback"),
-    ("54:48", "Wrap-up"),
-]
+LANG = "Meanwhile: the language-learning app"
+TRACK = "Meanwhile: the Chinese tracker"
+DETOUR = "Detour: starting another project"
+EXPORT = "Fighting an artifact export (another project)"
+
+# Each plan entry: (start "m:ss", mode, label for speed-ups). A segment ends where the next starts.
+VIDEOS = {
+    "tracker": {
+        "title": "Building a Chinese study tracker with Claude Code",
+        "plan": [
+            ("0:00", "normal", ""),
+            ("1:40", "fast", "Meanwhile: starting the language-learning app"),
+            ("4:15", "normal", ""),
+            ("14:16", "fast", LANG),
+            ("21:24", "normal", ""),
+            ("29:52", "fast", "Copying a token, and a payment rant"),
+            ("31:42", "fast", "Turning on Screen Time sharing"),
+            ("32:45", "normal", ""),
+            ("35:09", "fast", LANG),
+            ("38:36", "fast", DETOUR),
+            ("41:05", "fast", LANG),
+            ("53:15", "fast", EXPORT),
+            ("54:45", "fast", LANG),
+            ("55:05", "normal", ""),
+        ],
+        "sections": [
+            ("0:00", "The idea: track my Mandarin time"),
+            ("4:15", "Reality check: five devices to track"),
+            ("6:17", "Split the work across sessions"),
+            ("9:49", "Let a model label the channels"),
+            ("21:24", "What can be tracked from the Mac"),
+            ("25:40", "Ask it to compare methods"),
+            ("27:05", "Setup: permissions and iPhone mirroring"),
+            ("32:45", "Test on the other Mac"),
+            ("55:05", "Wrap-up"),
+        ],
+    },
+    "companion": {
+        "title": "Building a language-learning app with Claude Code",
+        "plan": [
+            ("0:00", "normal", ""),
+            ("0:12", "fast", "Meanwhile: starting the Chinese tracker"),
+            ("1:40", "normal", ""),
+            ("4:15", "fast", TRACK),
+            ("14:16", "normal", ""),
+            ("21:24", "fast", TRACK),
+            ("35:09", "normal", ""),
+            ("38:36", "fast", DETOUR),
+            ("41:05", "normal", ""),
+            ("53:15", "fast", EXPORT),
+            ("54:45", "normal", ""),
+        ],
+        "sections": [
+            ("0:00", "Intro"),
+            ("1:40", "The idea: an evidence-based language app"),
+            ("14:16", "What does the evidence say?"),
+            ("15:02", "What do I actually want?"),
+            ("17:47", "The brief: German reading and pronunciation"),
+            ("35:09", "A nicer reader"),
+            ("37:20", "Pronunciation feedback and sign-in"),
+            ("41:05", "Reading German for the first time"),
+            ("45:00", "Anime clips and voice models"),
+            ("49:11", "Build the whole app"),
+            ("52:40", "Let it run"),
+            ("54:45", "Wrap-up"),
+        ],
+    },
+}
 
 
 def sec(ms):
@@ -63,28 +89,29 @@ def snap(t, window=4.0):
         return 0.0
     best, width = t, 0.0
     for a, b in zip(words, words[1:]):
-        gap_s, gap_e = a["e"], b["s"]
-        if gap_e < t - window or gap_s > t + window:
+        if b["s"] < t - window or a["e"] > t + window:
             continue
-        w = gap_e - gap_s
-        if w > width:
-            best, width = (gap_s + gap_e) / 2, w
+        if b["s"] - a["e"] > width:
+            best, width = (a["e"] + b["s"]) / 2, b["s"] - a["e"]
     return round(best, 2)
 
 
-starts = [snap(sec(p[0])) for p in PLAN] + [DURATION]
-segments = []
-for i, (_, mode, label) in enumerate(PLAN):
-    s, e = starts[i], starts[i + 1]
-    seg = {"s": s, "e": e, "mode": mode}
-    if mode == "fast":
-        seg.update(speed=max(4, round((e - s) / 10)), label=label)
-    segments.append(seg)
-edit = {
-    "autoSilence": True, "silenceMin": 1.5, "silenceSpeed": 8,
-    "segments": segments,
-    "sections": [{"t": snap(sec(t)), "title": title} for t, title in SECTIONS],
-}
-json.dump(edit, open(OUT, "w"), indent=1)
-kept = sum(s["e"] - s["s"] for s in segments if s["mode"] == "normal")
-print(f"{len(segments)} segments, {kept / 60:.1f} min at normal speed before pause speed-ups")
+for key, video in VIDEOS.items():
+    plan = video["plan"]
+    starts = [snap(sec(p[0])) for p in plan] + [DURATION]
+    segments = []
+    for i, (_, mode, label) in enumerate(plan):
+        s, e = starts[i], starts[i + 1]
+        seg = {"s": s, "e": e, "mode": mode}
+        if mode == "fast":
+            seg.update(speed=min(60, max(4, round((e - s) / 9))), label=label, autoSpeed=True)
+        segments.append(seg)
+    edit = {
+        "title": video["title"],
+        "autoSilence": True, "silenceMin": 1.5, "silenceSpeed": 8,
+        "segments": segments,
+        "sections": [{"t": snap(sec(t)), "title": title} for t, title in video["sections"]],
+    }
+    json.dump(edit, open(os.path.join(OUT_DIR, f"edit-{key}.json"), "w"), indent=1)
+    kept = sum(s["e"] - s["s"] for s in segments if s["mode"] == "normal")
+    print(f"{key}: {len(segments)} segments, {kept / 60:.1f} min at normal speed before pause speed-ups")

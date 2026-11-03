@@ -3,13 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Language App Build</title>
+<title>Two Apps Build</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%23ff3b30%22/%3E%3Cpath d=%22M6 4.5v7l5.5-3.5z%22 fill=%22white%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header id="topbar">
-  <h1>Building a language-learning companion with Claude Code</h1>
+  <h1 id="title"></h1>
+  <nav id="videos" class="seg-ctl small" aria-label="Video">
+    <a href="?v=tracker" data-v="tracker">Chinese tracker</a>
+    <a href="?v=companion" data-v="companion">Language app</a>
+  </nav>
   <div id="lengths" class="edit-only"></div>
   <div class="spacer"></div>
   <span id="saveState" class="edit-only">Saved</span>
@@ -23,6 +27,7 @@
   <section id="left">
     <div id="stage">
       <video id="video" src="media/player.mp4" preload="auto" playsinline></video>
+      <video id="avatar" muted playsinline preload="auto" hidden></video>
       <div id="fastBanner" hidden><span id="fastText"></span><button id="expandHere">Watch at normal speed</button></div>
       <div id="toast" hidden><span id="toastText"></span><button id="toastBtn">Watch it</button></div>
       <div id="sectionCard" hidden></div>
@@ -45,17 +50,16 @@
           <button id="chapterName" class="ctl text" title="Show sections"></button>
           <div class="spacer"></div>
           <button id="cc" class="ctl pill on" title="Captions (C)">CC</button>
-          <div id="menuWrap">
-            <button id="gear" class="ctl" title="Settings"></button>
-            <div id="menu" hidden>
-              <div class="mRow"><span>Speed</span><div id="rates"></div></div>
-              <label class="mRow"><span>Zoom on the active window</span><input id="zoomChk" type="checkbox" checked></label>
-              <label class="mRow"><span>Play everything, no skipping</span><input id="rawChk" type="checkbox"></label>
-            </div>
-          </div>
           <button id="fs" class="ctl" title="Fullscreen (F)"></button>
         </div>
       </div>
+    </div>
+
+    <div id="viewBar">
+      <div class="vgroup"><span class="vlabel">Speed</span><div id="rates" class="seg-ctl small"></div></div>
+      <label class="switch"><input id="zoomChk" type="checkbox" checked><span>Zoom on the active window</span></label>
+      <label class="switch" id="avatarSwitch" hidden><input id="avatarChk" type="checkbox" checked><span>Avatar</span></label>
+      <label class="switch"><input id="rawChk" type="checkbox"><span>Play everything, no skipping</span><span id="fullLen" class="muted"></span></label>
     </div>
 
     <div id="editPane" class="edit-only">
@@ -153,6 +157,7 @@
       <dt>Shift+N / Shift+P</dt><dd>Next / previous section</dd>
       <dt>X</dt><dd>Watch the current sped-up part at normal speed</dd>
       <dt>C · F · M</dt><dd>Captions · fullscreen · mute</dd>
+      <dt>A · Z</dt><dd>Avatar · zoom</dd>
       <dt>E</dt><dd>Edit mode</dd>
     </dl>
     <div class="edit-only">

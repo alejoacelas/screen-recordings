@@ -11,15 +11,22 @@ const ICON = {
   next: '<svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>',
   vol: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>',
   mute: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>',
-  gear: '<svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.8 1.7 1L11 21h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>',
   fs: '<svg viewBox="0 0 24 24"><path d="M5 5h5v2H7v3H5zm9 0h5v5h-2V7h-3zM5 14h2v3h3v2H5zm12 0h2v5h-5v-2h3z"/></svg>',
   fsExit: '<svg viewBox="0 0 24 24"><path d="M8 5h2v5H5V8h3zm6 0h2v3h3v2h-5zM5 14h5v5H8v-3H5zm9 0h5v2h-3v3h-2z"/></svg>',
 };
 
 let edit, zoom, words = [], lines = [], capLines = [];
 let pieces = [], total = 0, chapters = [];
-let baseRate = 1, ccOn = true, zoomOn = true, raw = false, userMuted = false;
-let editing = new URLSearchParams(location.search).has("edit");
+let baseRate = 1, ccOn = true, zoomOn = true, raw = false, userMuted = false, avatarOn = true, avatarReady = false;
+const avatar = $("avatar");
+// Per-viewer conveniences; the page works the same without storage.
+const prefs = (() => { try { return JSON.parse(localStorage.getItem("prefs") || "{}"); } catch { return {}; } })();
+const savePrefs = () => { try { localStorage.setItem("prefs", JSON.stringify({ baseRate, ccOn, zoomOn, avatarOn })); } catch {} };
+if (typeof prefs.baseRate === "number") ({ baseRate, ccOn, zoomOn, avatarOn } = { baseRate: 1, ccOn: true, zoomOn: true, avatarOn: true, ...prefs });
+const params = new URLSearchParams(location.search);
+const VIDEO = ["tracker", "companion"].includes(params.get("v")) ? params.get("v") : "tracker";
+const EDIT_FILE = `data/edit-${VIDEO}.json`;
+let editing = params.has("edit");
 const expanded = new Set();   // start times of skipped segments the viewer chose to watch
 let selected = 0, selRange = null, anchorLine = null;
 let followUntil = 0, curLine = -1, curWord = -1, curChap = -1, lapse = null, toastTimer = null;
@@ -43,7 +50,7 @@ const isSkipped = (seg) => seg.mode !== "normal" && !expanded.has(seg.s);
 async function load() {
   const get = (u) => fetch(u).then((r) => r.json());
   let transcript;
-  [edit, zoom, transcript] = await Promise.all([get("data/edit.json"), get("data/zoom.json"), get("data/words.json")]);
+  [edit, zoom, transcript] = await Promise.all([get(EDIT_FILE), get("data/zoom.json"), get("data/words.json")]);
   words = transcript.words;
   let wi = 0;
   lines = transcript.segments.map((seg, i) => {
@@ -54,8 +61,15 @@ async function load() {
   }).filter((l) => l.b > l.a || l.text);
   capLines = buildCaptionLines(words);
   $("play").innerHTML = ICON.play; $("next").innerHTML = ICON.next; $("mute").innerHTML = ICON.vol;
-  $("gear").innerHTML = ICON.gear; $("fs").innerHTML = ICON.fs;
+  $("fs").innerHTML = ICON.fs;
+  $("title").textContent = document.title = edit.title;
+  for (const a of $("videos").children) {
+    a.classList.toggle("active", a.dataset.v === VIDEO);
+    a.href = `?v=${a.dataset.v}${editing ? "&edit" : ""}`;
+  }
   buildRates();
+  $("cc").classList.toggle("on", ccOn); $("zoomChk").checked = zoomOn; $("avatarChk").checked = avatarOn;
+  loadAvatar();
   syncSettings();
   setEditing(editing);
   requestAnimationFrame(tick);
@@ -130,6 +144,27 @@ function sourceOf(et) {
 const segAt = (t) => { const i = bsearch(edit.segments, t); return i >= 0 && t < edit.segments[i].e ? i : edit.segments.length - 1; };
 const lineAt = (t) => bsearch(lines, t);
 
+// ---- avatar layer ----------------------------------------------------------
+async function loadAvatar() {
+  const head = await fetch("media/avatar.webm", { method: "HEAD" }).catch(() => null);
+  if (!head || !head.ok) return;
+  const box = { w: 420, h: 170, right: 2, top: 0 };   // vtuber/render.mjs places it at x = W-w-2, y = 0
+  const SW = 1658, SH = 1078;
+  Object.assign(avatar.style, { width: `${(box.w / SW) * 100}%`, height: `${(box.h / SH) * 100}%`,
+    right: `${(box.right / SW) * 100}%`, top: `${(box.top / SH) * 100}%` });
+  avatar.src = "media/avatar.webm";
+  avatar.addEventListener("loadeddata", () => (avatarReady = true), { once: true });
+  $("avatarSwitch").hidden = false;
+}
+function syncAvatar(t, piece) {
+  const show = avatarReady && avatarOn && !(piece && piece.kind === "fast");
+  avatar.hidden = !show;
+  if (!show) { if (!avatar.paused) avatar.pause(); return; }
+  if (Math.abs(avatar.playbackRate - video.playbackRate) > 0.01) avatar.playbackRate = video.playbackRate;
+  if (Math.abs(avatar.currentTime - t) > 0.2 && !avatar.seeking) avatar.currentTime = t;
+  if (video.paused !== avatar.paused) video.paused ? avatar.pause() : avatar.play().catch(() => {});
+}
+
 // ---- playback engine -----------------------------------------------------
 function tick(now) {
   const t = video.currentTime;
@@ -161,6 +196,7 @@ function tick(now) {
   const quiet = !!piece && piece.rate > 1;
   if (video.muted !== (userMuted || quiet)) video.muted = userMuted || quiet;
   drawOverlays(t, piece);
+  syncAvatar(t, piece);
   drawProgress(t);
   requestAnimationFrame(tick);
 }
@@ -250,6 +286,7 @@ function rebuild() {
   renderChapterList();
   renderChapterHeads();
   renderLineModes();
+  $("fullLen").textContent = `${fmt(duration() / baseRate)} instead of ${fmt(total / baseRate)}`;
   if (editing) {
     renderTimeline();
     renderSegCard();
@@ -264,7 +301,9 @@ function setEditing(on) {
   document.body.classList.toggle("editing", on);
   const u = new URL(location.href);
   on ? u.searchParams.set("edit", "") : u.searchParams.delete("edit");
+  u.searchParams.set("v", VIDEO);
   history.replaceState(null, "", u.toString().replace("edit=", "edit"));
+  for (const a of $("videos").children) a.href = `?v=${a.dataset.v}${on ? "&edit" : ""}`;
   selRange = null;
   renderTranscript();
   rebuild();
@@ -277,16 +316,8 @@ function renderChapterBar() {
 
 function renderChapterList() {
   $("chapterList").innerHTML = chapters.map((c, ci) => {
-    const skips = edit.segments.map((s, i) => ({ ...s, i }))
-      .filter((s) => s.mode !== "normal" && s.e > c.t + 0.1 && s.s < c.te - 0.1)
-      .map((s) => {
-        const open = expanded.has(s.s);
-        const what = s.mode === "fast" ? `${esc(s.label || "Sped up")} · ${fmt(s.e - s.s)} at ${s.speed}×` : `Skipped ${fmt(s.e - s.s)}`;
-        return `<div class="skipRow${open ? " expanded" : ""}"><span class="ic">${s.mode === "fast" ? "⏩" : "✂"}</span><span class="lbl" title="${what}">${what}</span>` +
-          `<button data-expand="${s.s}">${open ? "Collapse" : "Watch in full"}</button></div>`;
-      }).join("");
     return `<div class="chItem${ci === curChap ? " cur" : ""}" data-c="${ci}"><span class="ct">${fmt(c.es / baseRate)}</span><div>` +
-      `<div class="title">${esc(c.title)}</div><div class="meta">${fmt((c.ee - c.es) / baseRate)}</div>${skips}<div class="bar"><i></i></div></div></div>`;
+      `<div class="title">${esc(c.title)}</div><div class="meta">${fmt((c.ee - c.es) / baseRate)}</div><div class="bar"><i></i></div></div></div>`;
   }).join("");
 }
 
@@ -468,7 +499,7 @@ function scheduleSave() {
   saveTimer = setTimeout(async () => {
     const put = (u, body) => fetch(u, { method: "PUT", body: JSON.stringify(body, null, 1) });
     try {
-      const r = await Promise.all([put("data/edit.json", edit), put("data/zoom.json", zoom)]);
+      const r = await Promise.all([put(EDIT_FILE, edit), put("data/zoom.json", zoom)]);
       $("saveState").textContent = r.every((x) => x.ok) ? "Saved" : "Save failed";
     } catch { $("saveState").textContent = "Save failed"; }
   }, 600);
@@ -519,7 +550,7 @@ function togglePlay() {
 function poke() {
   stage.classList.remove("idle");
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => { if (!video.paused && !barDragging && $("menu").hidden) stage.classList.add("idle"); }, 2500);
+  idleTimer = setTimeout(() => { if (!video.paused && !barDragging) stage.classList.add("idle"); }, 2500);
 }
 function seekSource(t) {
   stage.classList.add("jump");
@@ -542,24 +573,24 @@ $("mute").onclick = () => { userMuted = !userMuted; $("mute").innerHTML = userMu
 $("vol").oninput = (e) => { video.volume = +e.target.value; if (userMuted && video.volume > 0) $("mute").click(); };
 $("fs").onclick = () => (document.fullscreenElement ? document.exitFullscreen() : stage.requestFullscreen());
 document.addEventListener("fullscreenchange", () => ($("fs").innerHTML = document.fullscreenElement ? ICON.fsExit : ICON.fs));
-$("cc").onclick = () => { ccOn = !ccOn; $("cc").classList.toggle("on", ccOn); };
+$("cc").onclick = () => { ccOn = !ccOn; $("cc").classList.toggle("on", ccOn); savePrefs(); };
 $("chapterName").onclick = () => showTab("chapterList");
-$("zoomChk").onchange = (e) => (zoomOn = e.target.checked);
+$("zoomChk").onchange = (e) => { zoomOn = e.target.checked; savePrefs(); };
+$("avatarChk").onchange = (e) => { avatarOn = e.target.checked; savePrefs(); };
 $("rawChk").onchange = (e) => (raw = e.target.checked);
 
 function buildRates() {
-  $("rates").innerHTML = [1, 1.25, 1.5, 2].map((r) => `<button data-rate="${r}" class="${r === baseRate ? "cur" : ""}">${r}×</button>`).join("");
+  $("rates").innerHTML = [1, 1.25, 1.5, 2].map((r) => `<button data-rate="${r}" class="${r === baseRate ? "active" : ""}">${r}×</button>`).join("");
 }
 $("rates").onclick = (e) => {
   const r = e.target.dataset.rate;
   if (!r) return;
   e.stopPropagation();
   baseRate = +r;
-  for (const b of $("rates").children) b.classList.toggle("cur", +b.dataset.rate === baseRate);
+  savePrefs();
+  for (const b of $("rates").children) b.classList.toggle("active", +b.dataset.rate === baseRate);
   rebuild();
 };
-$("gear").onclick = (e) => { e.stopPropagation(); $("menu").hidden = !$("menu").hidden; };
-document.addEventListener("click", (e) => { if (!$("menuWrap").contains(e.target)) $("menu").hidden = true; });
 
 // chapter bar: hover preview and drag to scrub (edited time)
 const bar = $("chapterBar");
@@ -726,11 +757,12 @@ document.addEventListener("keydown", (e) => {
     n: () => e.shiftKey && gotoChapter(1), p: () => e.shiftKey && gotoChapter(-1),
     x: expandCurrent,
     c: () => $("cc").click(), f: () => $("fs").click(), m: () => $("mute").click(),
-    z: () => { $("zoomChk").checked = zoomOn = !zoomOn; },
+    z: () => { $("zoomChk").checked = zoomOn = !zoomOn; savePrefs(); },
+    a: () => { if (!$("avatarSwitch").hidden) { $("avatarChk").checked = avatarOn = !avatarOn; savePrefs(); } },
     u: () => { $("rawChk").checked = raw = !raw; },
     e: () => setEditing(!editing),
     "?": () => ($("help").hidden = !$("help").hidden),
-    escape: () => { $("help").hidden = true; $("menu").hidden = true; selRange = null; renderLineModes(); },
+    escape: () => { $("help").hidden = true; selRange = null; renderLineModes(); },
     ...(editing ? { 1: () => applyMode("normal"), 2: () => applyMode("fast"), 3: () => applyMode("cut"), s: () => $("split").click() } : {}),
   }[k];
   if (act) { e.preventDefault(); act(); }

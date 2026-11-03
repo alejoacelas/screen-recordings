@@ -1,12 +1,12 @@
 """Serve the editor with HTTP Range support (needed for video seeking) and save edits.
 
 Usage: python3 tools/serve.py [port]   (run from language-app-edit/)
-PUT /data/edit.json or /data/zoom.json writes that file.
+PUT /data/edit-<video>.json or /data/zoom.json writes that file.
 """
 import http.server, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WRITABLE = {"/data/edit.json", "/data/zoom.json"}
+WRITABLE = {"/data/edit-tracker.json", "/data/edit-companion.json", "/data/zoom.json"}
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
