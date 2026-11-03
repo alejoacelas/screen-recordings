@@ -71,9 +71,7 @@ final class Recorder: NSObject {
             segments = []
             accumulated = 0
             try await startCamera()
-            try await makeStream()
-            try startSegment()
-            try await stream!.startCapture()
+            try await startSegment()
             state = .recording
             Log.write("Recording started in \(dir.path)")
         } catch {
@@ -94,7 +92,7 @@ final class Recorder: NSObject {
         case .paused:
             state = .transitioning
             do {
-                try startSegment()
+                try await startSegment()
                 state = .recording
                 Log.write("Resumed")
             } catch {
@@ -176,7 +174,10 @@ final class Recorder: NSObject {
 
     // MARK: Segments
 
-    private func startSegment() throws {
+    /// Starts a fresh screen capture and camera file. Each segment gets its own SCStream because
+    /// SCRecordingOutput never reports finishing when removed from a running stream.
+    private func startSegment() async throws {
+        try await makeStream()
         guard let dir = sessionDir, let stream, let movieOutput else { return }
         let index = segments.count + 1
         let screenName = String(format: "segments/%03d-screen.mov", index)
@@ -189,8 +190,9 @@ final class Recorder: NSObject {
         let output = SCRecordingOutput(configuration: config, delegate: self)
         try stream.addRecordingOutput(output)
         recordingOutput = output
-
+        // Register the segment first: the start callbacks write their times into the last one.
         segments.append(Segment(screen: screenName, camera: cameraName))
+        try await stream.startCapture()
         movieOutput.startRecording(to: dir.appendingPathComponent(cameraName), recordingDelegate: self)
         segmentStartedAt = Date()
     }
@@ -202,12 +204,17 @@ final class Recorder: NSObject {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             finishContinuation = continuation
             pendingFinishes = 2
-            if let output = recordingOutput {
-                do { try stream?.removeRecordingOutput(output) } catch {
-                    Log.write("Could not close screen file: \(error)")
-                    finishOne()
+            if let stream {
+                Task {
+                    // stopCapture returns once the screen file is written; on macOS 26
+                    // recordingOutputDidFinishRecording is never called, so this is the signal.
+                    do { try await stream.stopCapture() } catch {
+                        Log.write("Could not close screen file: \(error)")
+                    }
+                    self.finishOne()
                 }
             } else { finishOne() }
+            stream = nil
             recordingOutput = nil
             if let movieOutput, movieOutput.isRecording { movieOutput.stopRecording() } else { finishOne() }
         }
@@ -236,6 +243,7 @@ final class Recorder: NSObject {
 
 extension Recorder: SCRecordingOutputDelegate, SCStreamDelegate, AVCaptureFileOutputRecordingDelegate {
     nonisolated func recordingOutputDidStartRecording(_ recordingOutput: SCRecordingOutput) {
+        Log.write("Screen file started")
         let now = CACurrentMediaTime()
         Task { @MainActor in
             if let i = self.segments.indices.last, self.segments[i].screenStart == nil { self.segments[i].screenStart = now }
@@ -243,12 +251,11 @@ extension Recorder: SCRecordingOutputDelegate, SCStreamDelegate, AVCaptureFileOu
     }
 
     nonisolated func recordingOutputDidFinishRecording(_ recordingOutput: SCRecordingOutput) {
-        Task { @MainActor in self.finishOne() }
+        Log.write("Screen file finished")
     }
 
     nonisolated func recordingOutput(_ recordingOutput: SCRecordingOutput, didFailWithError error: Error) {
         Log.write("Screen recording failed: \(error)")
-        Task { @MainActor in if self.pendingFinishes > 0 { self.finishOne() } }
     }
 
     nonisolated func stream(_ stream: SCStream, didStopWithError error: Error) {
@@ -257,6 +264,7 @@ extension Recorder: SCRecordingOutputDelegate, SCStreamDelegate, AVCaptureFileOu
 
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL,
                                 from connections: [AVCaptureConnection]) {
+        Log.write("Camera file started")
         let now = CACurrentMediaTime()
         Task { @MainActor in
             if let i = self.segments.indices.last, self.segments[i].cameraStart == nil { self.segments[i].cameraStart = now }
@@ -265,6 +273,7 @@ extension Recorder: SCRecordingOutputDelegate, SCStreamDelegate, AVCaptureFileOu
 
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL,
                                 from connections: [AVCaptureConnection], error: Error?) {
+        Log.write("Camera file finished")
         if let error {
             let finished = (error as NSError).userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool ?? false
             if !finished { Log.write("Camera recording failed: \(error)") }

@@ -3,3 +3,4 @@ build/
 *.mp4
 *.raw
 *.wav
+node_modules/
