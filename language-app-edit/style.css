@@ -223,3 +223,13 @@ body:not(.editing) #stage { max-width: calc((100vh - 52px - 32px) * 1658 / 1078)
 .line.expanded { border-left-color: var(--accent); color: var(--ink); }
 .line.expanded .tx { text-decoration: none; }
 .line.expanded .t::after { content: ""; }
+#chapterList { overflow-x: hidden; }
+.chItem { grid-template-columns: 54px minmax(0, 1fr); }
+.chItem > div { min-width: 0; }
+.skipRow button { flex-shrink: 0; }
+#transcript { padding-top: 0; }
+@media (max-width: 1000px) {
+  body:not(.editing) #layout, body.editing #layout { grid-template-columns: 1fr; height: auto; }
+  body:not(.editing) #stage, #stage { max-width: none; }
+  .ctl.text { display: none; }
+}

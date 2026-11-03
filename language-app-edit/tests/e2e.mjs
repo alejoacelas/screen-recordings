@@ -75,7 +75,7 @@ try {
   if (vfast) {
     await ev((t) => seekSource(t + 1), vfast.s); await sleep(300);
     const a = await ev(() => video.currentTime); await sleep(2000); const b = await ev(() => video.currentTime);
-    check(`viewer: ${vfast.speed}x part advances faster than 16x`, (b - a) / 2 > 18, `${((b - a) / 2).toFixed(1)} s of source per second`);
+    check(`viewer: ${vfast.speed}x part keeps close to its speed`, (b - a) / 2 > vfast.speed * 0.8, `${((b - a) / 2).toFixed(1)} s of source per second`);
   }
 
   // "Watch in full" from the sections list
@@ -106,7 +106,7 @@ try {
 
   // transcript tab follows playback; clicking a skipped line plays it
   await page.click('[data-tab="transcriptTab"]');
-  await ev(() => seekSource(900)); await sleep(1200);
+  await ev(() => { const w = words.find((x) => x.s > 900 && x.e - x.s > 0.2); seekSource(w.s + 0.05); }); await sleep(1200);
   const v9 = await ev(() => {
     const el = document.querySelector(".line.now"), box = $("transcript");
     const y = el ? el.getBoundingClientRect().top - box.getBoundingClientRect().top : -1;
@@ -211,6 +211,7 @@ try {
   const hits = await ed(() => ({ shown: document.querySelectorAll(".line:not(.hidden)").length, marks: document.querySelectorAll("mark").length }));
   check("edit: search filters and highlights", hits.shown > 0 && hits.shown < 200 && hits.marks > 0, JSON.stringify(hits));
   await page.fill("#search", "");
+  await page.locator("#search").blur();
 
   await page.keyboard.press("e");
   check("E leaves edit mode", await ed(() => !editing && getComputedStyle($("editPane")).display === "none"));

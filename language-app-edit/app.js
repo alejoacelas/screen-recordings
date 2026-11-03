@@ -22,7 +22,7 @@ let baseRate = 1, ccOn = true, zoomOn = true, raw = false, userMuted = false;
 let editing = new URLSearchParams(location.search).has("edit");
 const expanded = new Set();   // start times of skipped segments the viewer chose to watch
 let selected = 0, selRange = null, anchorLine = null;
-let followUntil = 0, curLine = -1, curWord = -1, curChap = -1, lastJump = 0, toastTimer = null;
+let followUntil = 0, curLine = -1, curWord = -1, curChap = -1, lapse = null, toastTimer = null;
 const undoStack = [], redoStack = [];
 
 const fmt = (s) => {
@@ -150,11 +150,14 @@ function tick(now) {
   const want = (piece ? piece.rate : 1) * baseRate;
   const rate = Math.min(want, MAX_RATE);
   if (Math.abs(video.playbackRate - rate) > 0.01) video.playbackRate = rate;
-  // Above 16x, add forward jumps on top of 16x playback, sized by the real time since the last jump.
-  if (!video.paused && want > MAX_RATE && !video.seeking) {
-    const dt = Math.min(1, (now - lastJump) / 1000);
-    if (dt >= 0.2) { lastJump = now; video.currentTime = Math.min(piece.e, t + (want - MAX_RATE) * dt); }
-  } else if (want <= MAX_RATE) lastJump = now;
+  // Above 16x, run a time-lapse: a clock advances at the wanted speed and the video jumps to it
+  // whenever the previous jump has finished.
+  if (!video.paused && want > MAX_RATE) {
+    if (!lapse || lapse.piece !== piece) lapse = { piece, vt: t, last: now };
+    lapse.vt = Math.min(piece.e, lapse.vt + want * Math.min(0.25, (now - lapse.last) / 1000));
+    lapse.last = now;
+    if (!video.seeking && lapse.vt - t > 0.3) video.currentTime = lapse.vt;
+  } else lapse = null;
   const quiet = !!piece && piece.rate > 1;
   if (video.muted !== (userMuted || quiet)) video.muted = userMuted || quiet;
   drawOverlays(t, piece);
@@ -352,6 +355,8 @@ function renderLineModes() {
     el.classList.toggle("cut", seg.mode === "cut");
     el.classList.toggle("expanded", seg.mode !== "normal" && expanded.has(seg.s));
     el.classList.toggle("sel", !!sel);
+    const stamp = fmt(editing ? l.s : editedOf(l.s) / baseRate);
+    if (el.firstChild.textContent !== stamp) el.firstChild.textContent = stamp;
     el.title = seg.mode === "normal" || !isSkipped(seg) || editing ? "" : "Skipped in the highlights. Click to watch it.";
   });
   $("selBar").hidden = !selRange || !editing;
@@ -711,7 +716,7 @@ $("help").onclick = () => ($("help").hidden = true);
 document.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey;
   if (editing && mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? restore(redoStack, undoStack) : restore(undoStack, redoStack); return; }
-  if (e.target.matches("input[type=text], input[type=search], input[type=number]")) { if (e.key === "Escape") e.target.blur(); return; }
+  if (e.target.matches("input:not([type=checkbox]):not([type=range]):not([readonly]), textarea")) { if (e.key === "Escape") e.target.blur(); return; }
   if (mod || e.altKey) return;
   const k = e.key.toLowerCase();
   const act = {
