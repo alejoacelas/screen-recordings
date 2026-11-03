@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.autosaveName = "rec"
         recorder.onChange = { [weak self] in self?.refresh() }
         HotKeys.install()
         HotKeys.register(id: 1, keyCode: kVK_ANSI_R, modifiers: HotKeys.controlOptionCommand) { [weak self] in
