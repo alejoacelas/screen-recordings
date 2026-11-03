@@ -7,7 +7,7 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { drawFx, drawBubble, starPath, heartPath } from './fx.js';
 
 const params = new URLSearchParams(location.search);
-const MODEL = params.get('model') || 'AvatarSample_A';
+const MODEL = params.get('model') || 'PS_Female';
 const OUT_W = 420, OUT_H = 170, CH = 170, SS = 3, CHAR_X = OUT_W - CH, DT = 1 / 30;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -152,7 +152,8 @@ function applyState(st) {
   // ARKit shapes aren't bound to any preset expression, so nothing else resets them between frames
   for (const mesh of faceMeshes) for (const k in mesh.morphTargetDictionary) if (!k.startsWith('Fcl_')) mesh.morphTargetInfluences[mesh.morphTargetDictionary[k]] = 0;
   // head and body
-  const { yaw, pitch, roll } = st;
+  // VRM 0.x bones face -z, so a positive x rotation lifts the chin; st.pitch is + = looking down
+  const { yaw, roll } = st, pitch = -st.pitch;
   B('spine').rotation.set(pitch * 0.1, yaw * 0.2, roll * 0.2);
   B('neck').rotation.set(pitch * 0.4, yaw * 0.35, roll * 0.4);
   B('head').rotation.set(pitch * 0.6, yaw * 0.55, roll * 0.6);

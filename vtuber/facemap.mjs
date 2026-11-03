@@ -8,12 +8,18 @@ import path from 'node:path';
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
-export function loadFace(dir) {
+// calibDir: a face.py track of the calibration clip (every expression pulled to its extreme).
+// Resting values come from the recording itself; expression ranges come from the calibration clip,
+// so a calm recording doesn't get its small movements stretched to full expressions.
+export function loadFace(dir, calibDir = process.env.FACE_CALIB) {
   const meta = JSON.parse(fs.readFileSync(path.join(dir, 'face.json'), 'utf8'));
   const raw = new Float32Array(fs.readFileSync(path.join(dir, 'face.bin')).buffer.slice(0));
   const idx = Object.fromEntries(meta.names.map((n, i) => [n, 4 + i]));
   const P = meta.percentiles;
-  const cal = (name, q) => meta.calibration[name][P.indexOf(q)];
+  const own = (name, q) => meta.calibration[name][P.indexOf(q)];
+  const ref = calibDir && JSON.parse(fs.readFileSync(path.join(calibDir, 'face.json'), 'utf8'));
+  const refq = (name, q) => ref.calibration[name][ref.percentiles.indexOf(q)];
+  const cal = (name, q) => (ref && q > 50 ? own(name, 50) + refq(name, q) - refq(name, 50) : own(name, q));
   return { meta, frames: meta.frames, row: (i) => raw.subarray(i * 56, i * 56 + 56), idx, cal };
 }
 

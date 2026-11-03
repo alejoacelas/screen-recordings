@@ -8,7 +8,7 @@ import { chromium } from 'playwright-core';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.mjs': 'text/javascript', '.vrm': 'model/gltf-binary' };
 
-export async function openAvatar(model = process.env.MODEL || "AvatarSample_A") {
+export async function openAvatar(model = process.env.MODEL || "PS_Female") {
   const server = http.createServer((req, res) => {
     const p = path.join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
     if (!p.startsWith(ROOT) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
