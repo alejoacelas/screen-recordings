@@ -7,89 +7,152 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
-  <section id="player">
+<header id="topbar">
+  <h1>Language app edit</h1>
+  <div id="lengths"></div>
+  <div class="spacer"></div>
+  <span id="saveState">Saved</span>
+  <button id="undo" class="icon" title="Undo (⌘Z)">↶</button>
+  <button id="redo" class="icon" title="Redo (⇧⌘Z)">↷</button>
+  <button id="helpBtn" class="icon" title="Keyboard shortcuts (?)">?</button>
+</header>
+
+<div id="layout">
+  <section id="left">
     <div id="stage">
-      <video id="video" src="media/source.mp4" preload="auto"></video>
+      <video id="video" src="media/source.mp4" preload="auto" playsinline></video>
       <div id="fastBanner" hidden></div>
       <div id="sectionCard" hidden></div>
       <div id="caption" hidden></div>
+      <div id="bigIcon" hidden></div>
+      <div id="overlay">
+        <div id="chapterBar">
+          <div id="chapters"></div>
+          <div id="barHover" hidden><div class="tt-title"></div><div class="tt-time"></div></div>
+          <div id="barThumb"></div>
+        </div>
+        <div id="ctrlRow">
+          <button id="play" class="ctl" title="Play (k)"></button>
+          <div id="volWrap">
+            <button id="mute" class="ctl" title="Mute (m)"></button>
+            <input id="vol" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
+          </div>
+          <span id="time">0:00 / 0:00</span>
+          <button id="chapterName" class="ctl text" title="Jump to this section in the transcript"></button>
+          <div class="spacer"></div>
+          <button id="rawBtn" class="ctl pill" title="Play the source unedited, including cut parts (u)">Unedited</button>
+          <button id="zoomBtn" class="ctl pill on" title="Zoom on the active pane (z)">Zoom</button>
+          <button id="cc" class="ctl pill on" title="Captions (c)">CC</button>
+          <div id="rateWrap">
+            <button id="rateBtn" class="ctl pill" title="Playback speed">1×</button>
+            <div id="rateMenu" hidden></div>
+          </div>
+          <button id="fs" class="ctl" title="Fullscreen (f)"></button>
+        </div>
+      </div>
     </div>
-    <div id="controls">
-      <button id="play" title="Play/pause (space)">▶</button>
-      <span id="time">0:00 / 0:00</span>
-      <input id="scrub" type="range" min="0" max="1000" step="1" value="0" aria-label="Position in edited video">
-      <label>Speed
-        <select id="rate">
-          <option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option>
-        </select>
-      </label>
-      <button id="cc" class="toggle on" title="Captions (c)">CC</button>
-      <button id="zoomBtn" class="toggle on" title="Zoom on active pane (z)">Zoom</button>
-      <button id="rawBtn" class="toggle" title="Play the source unedited, including cut parts (r)">Unedited</button>
-      <button id="mute" title="Mute (m)">🔊</button>
-      <input id="vol" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
-      <button id="fs" title="Fullscreen (f)">⛶</button>
+
+    <div id="editPane">
+      <div id="tlHead">
+        <span class="legend"><i class="sw normal"></i>Normal <i class="sw fast"></i>Sped up <i class="sw cut"></i>Cut <i class="sw zoomk"></i>Zoom change</span>
+        <div class="spacer"></div>
+        <span class="hint">Click to seek · drag a boundary to move it · select transcript lines and press 1 / 2 / 3</span>
+      </div>
+      <div id="timeline">
+        <div id="tlChapters"></div>
+        <div id="segs"></div>
+        <div id="zoomLane"></div>
+        <div id="playhead"></div>
+        <div id="tlHover" hidden></div>
+      </div>
+
+      <div id="cards">
+        <div class="card" id="segCard">
+          <div class="cardHead"><h2>Selected segment</h2><span id="segInfo"></span></div>
+          <div class="seg-ctl" id="modeBtns" role="radiogroup">
+            <button data-mode="normal"><b>1</b> Normal</button>
+            <button data-mode="fast"><b>2</b> Speed up</button>
+            <button data-mode="cut"><b>3</b> Cut</button>
+          </div>
+          <div id="fastFields">
+            <label class="field">Title shown while sped up
+              <input id="segLabel" type="text" placeholder="What happens here">
+            </label>
+            <label class="field">Speed <output id="segSpeedOut"></output>
+              <input id="segSpeed" type="range" min="2" max="60" step="1">
+            </label>
+          </div>
+          <div class="row">
+            <button id="split">Split at playhead <kbd>S</kbd></button>
+            <button id="mergePrev">Merge with previous</button>
+            <button id="mergeNext">Merge with next</button>
+          </div>
+        </div>
+
+        <div class="card" id="setCard">
+          <div class="cardHead"><h2>Pauses</h2></div>
+          <label class="check"><input id="autoSilence" type="checkbox"> Speed up pauses in normal segments</label>
+          <div class="row">
+            <label class="field inline">longer than <input id="silenceMin" type="number" min="1" max="30" step="0.5"> s</label>
+            <label class="field inline">at <input id="silenceSpeed" type="number" min="2" max="16" step="1">×</label>
+          </div>
+          <div class="cardHead"><h2>Zoom from playhead</h2></div>
+          <div class="seg-ctl small" id="zoomBtns">
+            <button data-z="full">Full</button>
+            <button data-z="0">Left</button>
+            <button data-z="1">Middle</button>
+            <button data-z="2">Right</button>
+          </div>
+          <div class="row">
+            <div class="seg-ctl small" id="zoomRow">
+              <button data-row="top">Top</button>
+              <button data-row="mid" class="active">Middle</button>
+              <button data-row="bottom">Bottom</button>
+            </div>
+            <button id="zoomDel" title="Remove the zoom change in effect at the playhead">Remove change</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="editor">
-    <div id="summary"></div>
-    <div id="timeline" title="Click to seek. Colours: normal, sped up, cut."><div id="segs"></div><div id="zoomLane"></div><div id="playhead"></div></div>
-
-    <div id="panels">
-      <div class="panel" id="segPanel">
-        <h2>Segment</h2>
-        <div id="segInfo"></div>
-        <div class="row" id="modeBtns">
-          <button data-mode="normal">Normal (1)</button>
-          <button data-mode="fast">Speed up (2)</button>
-          <button data-mode="cut">Cut (3)</button>
-        </div>
-        <div class="row">
-          <label>Speed <input id="segSpeed" type="number" min="2" max="120" step="1"></label>
-          <label class="grow">Title over speed-up <input id="segLabel" type="text"></label>
-        </div>
-        <div class="row">
-          <button id="split" title="Split at playhead (s)">Split at playhead</button>
-          <button id="mergeNext">Merge with next</button>
-          <button id="nudgeStart">Start → playhead</button>
-          <button id="nudgeEnd">End → playhead</button>
-        </div>
-        <h2>Pauses inside normal segments</h2>
-        <div class="row">
-          <label><input id="autoSilence" type="checkbox"> Speed up pauses longer than</label>
-          <input id="silenceMin" type="number" min="1" max="30" step="0.5"> s at
-          <input id="silenceSpeed" type="number" min="2" max="16" step="1">×
-        </div>
-        <h2>Zoom at playhead</h2>
-        <div class="row" id="zoomBtns">
-          <button data-z="full">Full</button>
-          <button data-z="0">Left</button>
-          <button data-z="1">Middle</button>
-          <button data-z="2">Right</button>
-          <select id="zoomRow"><option value="top">top</option><option value="mid" selected>middle</option><option value="bottom">bottom</option></select>
-          <button id="zoomDel">Delete keyframe</button>
-        </div>
-        <div class="row">
-          <button id="save" class="primary">Save (⌘S)</button>
-          <span id="saveState"></span>
-        </div>
-      </div>
-
-      <div class="panel" id="sectionPanel">
-        <h2>Section titles</h2>
-        <ol id="sections"></ol>
-        <button id="addSection">Add title at playhead</button>
-      </div>
-
-      <div class="panel" id="transcriptPanel">
-        <h2>Transcript</h2>
-        <div id="transcript"></div>
-      </div>
+  <aside id="side">
+    <div id="sideHead">
+      <h2>Transcript</h2>
+      <input id="search" type="search" placeholder="Search transcript">
     </div>
-  </section>
-</main>
+    <div id="selBar" hidden>
+      <span id="selInfo"></span>
+      <div class="spacer"></div>
+      <button data-set="normal" title="1">Normal</button>
+      <button data-set="fast" title="2">Speed up</button>
+      <button data-set="cut" title="3">Cut</button>
+      <button id="selSection" title="Start a section title at the first selected line">＋ Section</button>
+      <button id="selClear" class="icon" title="Clear selection (Esc)">×</button>
+    </div>
+    <div id="transcript"></div>
+    <button id="jumpNow" hidden>↓ Back to current line</button>
+  </aside>
+</div>
+
+<div id="help" hidden>
+  <div class="helpBox">
+    <h2>Keyboard shortcuts</h2>
+    <dl>
+      <dt>Space / K</dt><dd>Play or pause</dd>
+      <dt>← / →</dt><dd>Back / forward 5 s (Shift: 30 s)</dd>
+      <dt>J / L</dt><dd>Back / forward 10 s</dd>
+      <dt>Click, Shift-click</dt><dd>Seek to a transcript line, select a range of lines</dd>
+      <dt>1 / 2 / 3</dt><dd>Selected lines or segment: normal / speed up / cut</dd>
+      <dt>S</dt><dd>Split the segment at the playhead</dd>
+      <dt>C · Z · U</dt><dd>Captions · zoom · unedited source</dd>
+      <dt>F · M</dt><dd>Fullscreen · mute</dd>
+      <dt>⌘Z / ⇧⌘Z</dt><dd>Undo / redo</dd>
+      <dt>Esc</dt><dd>Clear selection</dd>
+    </dl>
+    <p>Edits save automatically to <code>data/edit.json</code> and <code>data/zoom.json</code>.</p>
+  </div>
+</div>
 <script src="app.js"></script>
 </body>
 </html>
