@@ -1,6 +1,6 @@
-"""Serve the review pages and videos on http://localhost:8817 and save scene picks to picks.json.
+"""Serve the review pages and videos on http://localhost:8823 and save scene picks to picks.json.
 
-python3 review_server.py      # then open http://localhost:8817/scenes.html
+python3 review_server.py      # then open http://localhost:8823/scenes.html
 """
 import json, os, re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -74,4 +74,4 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", 8817), Handler).serve_forever()
+    ThreadingHTTPServer(("127.0.0.1", 8823), Handler).serve_forever()
