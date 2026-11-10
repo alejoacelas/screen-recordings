@@ -26,29 +26,9 @@
  "blur": {
   "am": [
    [
-    0,
-    16,
-    "Slack thread"
-   ],
-   [
-    46,
-    96,
-    "Slack thread"
-   ],
-   [
-    312,
-    398,
-    "Slack thread"
-   ],
-   [
-    906,
-    930,
-    "Slack thread"
-   ],
-   [
-    1568,
+    1597,
     1642,
-    "Slack, Swapcard messages, browser history, attendee sheet"
+    "browser history, Swapcard messages, attendee sheet"
    ],
    [
     1700,
