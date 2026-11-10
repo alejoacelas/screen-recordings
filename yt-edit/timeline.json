@@ -1,0 +1,1144 @@
+{
+ "recordings": {
+  "am": {
+   "dir": "/Users/alejo/Movies/Screen Recordings/2026-11-10 11.36.41",
+   "screenOffset": 2.282,
+   "duration": 4671.387,
+   "clock": "11:36:43",
+   "face": [
+    290,
+    20,
+    620
+   ]
+  },
+  "pm": {
+   "dir": "/Users/alejo/Movies/Screen Recordings/2026-11-10 14.50.10",
+   "screenOffset": 2.291,
+   "duration": 3126.946,
+   "clock": "14:50:13",
+   "face": [
+    290,
+    20,
+    620
+   ]
+  }
+ },
+ "blur": {
+  "am": [
+   [
+    0,
+    16,
+    "Slack thread"
+   ],
+   [
+    46,
+    96,
+    "Slack thread"
+   ],
+   [
+    312,
+    398,
+    "Slack thread"
+   ],
+   [
+    906,
+    930,
+    "Slack thread"
+   ],
+   [
+    1568,
+    1642,
+    "Slack, Swapcard messages, browser history, attendee sheet"
+   ],
+   [
+    1700,
+    1712,
+    "attendee sheet"
+   ],
+   [
+    1842,
+    1850,
+    "attendee sheet"
+   ]
+  ],
+  "pm": [
+   [
+    84,
+    142,
+    "browser history and billing page"
+   ],
+   [
+    1088,
+    1096,
+    "browser history"
+   ],
+   [
+    1124,
+    1324,
+    "billing page and browser history"
+   ],
+   [
+    2034,
+    2106,
+    "saved-password suggestion"
+   ]
+  ]
+ },
+ "entries": [
+  {
+   "rec": "am",
+   "s": 0,
+   "e": 20,
+   "proj": "shared",
+   "imp": "key",
+   "chapter": "Second take",
+   "hl": [
+    [
+     3,
+     20
+    ]
+   ],
+   "hlShort": [
+    [
+     3,
+     20
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 20,
+   "e": 57,
+   "proj": "shared",
+   "imp": "key",
+   "chapter": "Two empty project folders",
+   "hl": [
+    [
+     20,
+     40
+    ]
+   ],
+   "hlShort": [
+    [
+     20,
+     35
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 57,
+   "e": 95,
+   "proj": "tracker",
+   "imp": "normal",
+   "chapter": "Tracker: the first prompt",
+   "hl": [],
+   "hlShort": []
+  },
+  {
+   "rec": "am",
+   "s": 95,
+   "e": 306,
+   "proj": "tracker",
+   "imp": "key",
+   "chapter": "Tracker: the first prompt",
+   "hl": [
+    [
+     93,
+     306
+    ]
+   ],
+   "hlShort": [
+    [
+     93,
+     110
+    ],
+    [
+     128,
+     175
+    ],
+    [
+     194,
+     236
+    ],
+    [
+     283,
+     306
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 306,
+   "e": 420,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: picking what to build",
+   "hl": [
+    [
+     316,
+     326
+    ],
+    [
+     369,
+     392
+    ]
+   ],
+   "hlShort": [
+    [
+     369,
+     392
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 420,
+   "e": 505,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: what does the evidence say?",
+   "hl": [
+    [
+     427,
+     505
+    ]
+   ],
+   "hlShort": [
+    [
+     427,
+     470
+    ],
+    [
+     478,
+     505
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 505,
+   "e": 704,
+   "proj": "tracker",
+   "imp": "key",
+   "chapter": "Tracker: Claude's plan and my answers",
+   "hl": [
+    [
+     505,
+     548
+    ],
+    [
+     574,
+     600
+    ],
+    [
+     614,
+     704
+    ]
+   ],
+   "hlShort": [
+    [
+     505,
+     535
+    ],
+    [
+     614,
+     650
+    ],
+    [
+     680,
+     704
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 704,
+   "e": 899,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: the evidence, then copy the best tools",
+   "hl": [
+    [
+     711,
+     762
+    ],
+    [
+     775,
+     800
+    ],
+    [
+     805,
+     836
+    ],
+    [
+     841,
+     885
+    ]
+   ],
+   "hlShort": [
+    [
+     711,
+     745
+    ],
+    [
+     850,
+     885
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 899,
+   "e": 960,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: clearing the repo",
+   "hl": [
+    [
+     915,
+     945
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 960,
+   "e": 1416,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: one integrated app",
+   "hl": [
+    [
+     975,
+     1000
+    ],
+    [
+     1002,
+     1030
+    ],
+    [
+     1049,
+     1100
+    ],
+    [
+     1125,
+     1150
+    ],
+    [
+     1163,
+     1185
+    ],
+    [
+     1237,
+     1265
+    ],
+    [
+     1280,
+     1320
+    ],
+    [
+     1388,
+     1416
+    ]
+   ],
+   "hlShort": [
+    [
+     1002,
+     1030
+    ],
+    [
+     1049,
+     1080
+    ],
+    [
+     1237,
+     1265
+    ],
+    [
+     1388,
+     1416
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 1416,
+   "e": 1555,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: an auditable AI reviewer",
+   "hl": [
+    [
+     1416,
+     1440
+    ],
+    [
+     1456,
+     1540
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 1555,
+   "e": 1841,
+   "proj": "eagx",
+   "imp": "normal",
+   "chapter": "EAGx Berlin: who to meet",
+   "hl": [
+    [
+     1571,
+     1600
+    ],
+    [
+     1705,
+     1841
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 1841,
+   "e": 2042,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: trying the mock-up",
+   "hl": [
+    [
+     1843,
+     1910
+    ],
+    [
+     1912,
+     1935
+    ],
+    [
+     1950,
+     2042
+    ]
+   ],
+   "hlShort": [
+    [
+     1843,
+     1870
+    ],
+    [
+     1950,
+     1980
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 2042,
+   "e": 2080,
+   "proj": "eagx",
+   "imp": "minor",
+   "chapter": "EAGx Berlin: who to meet"
+  },
+  {
+   "rec": "am",
+   "s": 2080,
+   "e": 2150,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: an auditable AI reviewer",
+   "hl": [
+    [
+     2094,
+     2150
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 2150,
+   "e": 2261,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: tutor brief and Granola",
+   "hl": [],
+   "hlShort": []
+  },
+  {
+   "rec": "am",
+   "s": 2261,
+   "e": 2340,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: what would success look like?",
+   "hl": [
+    [
+     2281,
+     2330
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 2340,
+   "e": 2370,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: speech services",
+   "hl": [],
+   "hlShort": []
+  },
+  {
+   "rec": "am",
+   "s": 2370,
+   "e": 2500,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: what would success look like?",
+   "hl": [
+    [
+     2440,
+     2450
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 2500,
+   "e": 2520,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: make it pretty",
+   "hl": [
+    [
+     2500,
+     2520
+    ]
+   ],
+   "hlShort": [
+    [
+     2500,
+     2520
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 2520,
+   "e": 2848,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: what would success look like?",
+   "hl": [
+    [
+     2618,
+     2640
+    ],
+    [
+     2780,
+     2810
+    ],
+    [
+     2838,
+     2848
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 2848,
+   "e": 3417,
+   "proj": "away",
+   "imp": "cut",
+   "card": "Away from the desk for 9 minutes",
+   "cardSub": "Snack and a grocery delivery. Claude kept working."
+  },
+  {
+   "rec": "am",
+   "s": 3417,
+   "e": 3480,
+   "proj": "shared",
+   "imp": "minor",
+   "chapter": "Back",
+   "hlShort": []
+  },
+  {
+   "rec": "am",
+   "s": 3480,
+   "e": 3510,
+   "proj": "tracker",
+   "imp": "normal",
+   "chapter": "Tracker: building in the background",
+   "hl": [
+    [
+     3485,
+     3505
+    ]
+   ],
+   "hlShort": []
+  },
+  {
+   "rec": "am",
+   "s": 3510,
+   "e": 3640,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: grading AI reviewers",
+   "hl": [
+    [
+     3513,
+     3540
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 3640,
+   "e": 3730,
+   "proj": "eagx",
+   "imp": "minor",
+   "chapter": "EAGx Berlin: filtering attendees",
+   "hl": [
+    [
+     3652,
+     3700
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 3730,
+   "e": 4040,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: grading AI reviewers",
+   "hl": [
+    [
+     3739,
+     3760
+    ],
+    [
+     3858,
+     3925
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 4040,
+   "e": 4140,
+   "proj": "tracker",
+   "imp": "normal",
+   "chapter": "Tracker: the builds stopped, restart",
+   "hl": [
+    [
+     4058,
+     4090
+    ],
+    [
+     4120,
+     4140
+    ]
+   ],
+   "hlShort": [
+    [
+     4058,
+     4090
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 4140,
+   "e": 4440,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "David's project: grading AI reviewers",
+   "hl": [
+    [
+     4147,
+     4160
+    ],
+    [
+     4284,
+     4390
+    ]
+   ]
+  },
+  {
+   "rec": "am",
+   "s": 4440,
+   "e": 4475,
+   "proj": "eagx",
+   "imp": "minor",
+   "chapter": "EAGx Berlin: review page"
+  },
+  {
+   "rec": "am",
+   "s": 4475,
+   "e": 4671,
+   "proj": "david",
+   "imp": "key",
+   "chapter": "David's project: narrow graders, then lunch",
+   "hl": [
+    [
+     4500,
+     4521
+    ],
+    [
+     4586,
+     4665
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 0,
+   "e": 60,
+   "proj": "david",
+   "imp": "key",
+   "chapter": "After lunch: David's project didn't pan out",
+   "hl": [
+    [
+     0,
+     60
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 60,
+   "e": 413,
+   "proj": "david",
+   "imp": "normal",
+   "chapter": "$70 of API credit, and a rule for my agents",
+   "hl": [
+    [
+     60,
+     130
+    ],
+    [
+     146,
+     200
+    ],
+    [
+     240,
+     275
+    ],
+    [
+     325,
+     413
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 413,
+   "e": 598,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: first look and review cards",
+   "hl": [
+    [
+     413,
+     445
+    ],
+    [
+     464,
+     480
+    ],
+    [
+     490,
+     512
+    ]
+   ],
+   "hlShort": [
+    [
+     413,
+     445
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 598,
+   "e": 749,
+   "proj": "away",
+   "imp": "cut",
+   "card": "The house cleaner arrives",
+   "cardSub": "2.5 minutes of talking with her, cut."
+  },
+  {
+   "rec": "pm",
+   "s": 749,
+   "e": 1030,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: stories, podcasts, Netflix",
+   "hl": [
+    [
+     757,
+     850
+    ],
+    [
+     930,
+     1030
+    ]
+   ],
+   "hlShort": [
+    [
+     790,
+     830
+    ],
+    [
+     975,
+     1010
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 1030,
+   "e": 1414,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: debugging Netflix on the other Mac",
+   "hl": [
+    [
+     1038,
+     1060
+    ],
+    [
+     1119,
+     1150
+    ],
+    [
+     1177,
+     1220
+    ],
+    [
+     1240,
+     1265
+    ],
+    [
+     1384,
+     1414
+    ]
+   ],
+   "hlShort": [
+    [
+     1119,
+     1150
+    ],
+    [
+     1384,
+     1414
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 1414,
+   "e": 1742,
+   "proj": "companion",
+   "imp": "key",
+   "chapter": "Companion: the story reader and speaking practice",
+   "hl": [
+    [
+     1425,
+     1470
+    ],
+    [
+     1495,
+     1525
+    ],
+    [
+     1539,
+     1580
+    ],
+    [
+     1603,
+     1650
+    ],
+    [
+     1668,
+     1742
+    ]
+   ],
+   "hlShort": [
+    [
+     1425,
+     1470
+    ],
+    [
+     1495,
+     1525
+    ],
+    [
+     1603,
+     1650
+    ],
+    [
+     1668,
+     1715
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 1742,
+   "e": 1906,
+   "proj": "tracker",
+   "imp": "key",
+   "chapter": "Tracker: installing the phone app",
+   "hl": [
+    [
+     1742,
+     1760
+    ],
+    [
+     1813,
+     1840
+    ],
+    [
+     1853,
+     1895
+    ]
+   ],
+   "hlShort": [
+    [
+     1813,
+     1840
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 1906,
+   "e": 1974,
+   "proj": "tracker",
+   "imp": "minor",
+   "chapter": "Tracker: phone permissions",
+   "hl": [],
+   "hlShort": []
+  },
+  {
+   "rec": "pm",
+   "s": 1974,
+   "e": 2150,
+   "proj": "tracker",
+   "imp": "normal",
+   "chapter": "Tracker: connecting Readwise and the API key",
+   "hl": [],
+   "hlShort": []
+  },
+  {
+   "rec": "pm",
+   "s": 2150,
+   "e": 2210,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: how Granola lessons come in",
+   "hl": [
+    [
+     2187,
+     2205
+    ]
+   ],
+   "hlShort": []
+  },
+  {
+   "rec": "pm",
+   "s": 2210,
+   "e": 2642,
+   "proj": "tracker",
+   "imp": "key",
+   "chapter": "Tracker: does it count my Mandarin?",
+   "hl": [
+    [
+     2242,
+     2262
+    ],
+    [
+     2303,
+     2420
+    ],
+    [
+     2449,
+     2484
+    ],
+    [
+     2515,
+     2560
+    ],
+    [
+     2601,
+     2642
+    ]
+   ],
+   "hlShort": [
+    [
+     2303,
+     2330
+    ],
+    [
+     2350,
+     2385
+    ],
+    [
+     2515,
+     2545
+    ],
+    [
+     2615,
+     2642
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 2642,
+   "e": 2838,
+   "proj": "companion",
+   "imp": "normal",
+   "chapter": "Companion: YouTube and Netflix subtitles",
+   "hl": [
+    [
+     2683,
+     2700
+    ],
+    [
+     2755,
+     2790
+    ],
+    [
+     2809,
+     2830
+    ]
+   ],
+   "hlShort": [
+    [
+     2755,
+     2790
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 2838,
+   "e": 2985,
+   "proj": "tracker",
+   "imp": "key",
+   "chapter": "Tracker: Claude tests it on my phone",
+   "hl": [
+    [
+     2880,
+     2925
+    ],
+    [
+     2958,
+     2985
+    ]
+   ],
+   "hlShort": [
+    [
+     2880,
+     2910
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 2985,
+   "e": 3075,
+   "proj": "shared",
+   "imp": "key",
+   "chapter": "What I learned",
+   "hl": [
+    [
+     2993,
+     3075
+    ]
+   ],
+   "hlShort": [
+    [
+     3040,
+     3075
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 3075,
+   "e": 3091,
+   "proj": "tracker",
+   "imp": "key",
+   "chapter": "What I learned",
+   "hl": [
+    [
+     3075,
+     3091
+    ]
+   ],
+   "hlShort": [
+    [
+     3075,
+     3091
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 3091,
+   "e": 3108,
+   "proj": "david",
+   "imp": "key",
+   "chapter": "What I learned",
+   "hl": [
+    [
+     3091,
+     3108
+    ]
+   ]
+  },
+  {
+   "rec": "pm",
+   "s": 3108,
+   "e": 3127,
+   "proj": "shared",
+   "imp": "key",
+   "chapter": "What I learned",
+   "hl": [
+    [
+     3108,
+     3127
+    ]
+   ],
+   "hlShort": [
+    [
+     3108,
+     3127
+    ]
+   ]
+  }
+ ],
+ "noGap": {
+  "am": [
+   [
+    1841,
+    1990
+   ]
+  ],
+  "pm": [
+   [
+    960,
+    1010
+   ],
+   [
+    1539,
+    1727
+   ],
+   [
+    2700,
+    2760
+   ]
+  ]
+ }
+}
