@@ -14,7 +14,7 @@ PAD = 0.006
 TEXT = re.compile(
     r"[\w.+-]+@gmail\.com"                                   # email addresses in the browser
     r"|Cra 86F|Bogot[aá], DC|110871|Mastercard|•••• ?2972|\b10/2031\b"   # billing address and card
-    r"|(?=\w*\d)(?=\w*[^\W\d_A-ZА-Я])(?=\w*[A-ZА-Я])\w{20,}")       # tokens, generated passwords, private doc ids
+    r"|(?<!\w)(?!re[qa]_)(?=\w*\d)(?=\w*[^\W\d_A-ZА-Я])(?=\w*[A-ZА-Я])\w{20,}")       # tokens, generated passwords, private doc ids
 
 
 HEADERS = {"First Name", "Last Name", "Company", "Job Title", "Career Stage", "Biography", "Areas of Expertise",

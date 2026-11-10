@@ -3,7 +3,7 @@
 python3 render.py [version ...]      # all versions when none given
 python3 render.py --plan [version]   # print the edit plan and durations without rendering
 """
-import hashlib, json, re, subprocess, sys
+import hashlib, json, os, re, subprocess, sys, threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -281,7 +281,7 @@ def style_for(v, sc):
     elif pick == "fast":
         st.update(mode="fast", other="lapse", otherRatio=30, otherMin=4, otherMax=25)
     elif pick == "real":
-        st.update(mode="real", other="lapse", otherRatio=8, otherMin=4, otherMax=120)
+        st.update(mode="real", hl={"speed": 1, "gapSpeed": 4, "gapMin": 3}, other="lapse", otherRatio=30, otherMin=4, otherMax=25)
     return st
 
 
@@ -342,6 +342,11 @@ def other_scene(run, st):
 
 def plan(vname):
     v = VERSIONS[vname]
+    if "picksFile" in v:  # picks made on the scene review page: {"base": version, "picks": {scene id: pick}}
+        f = ROOT / v["picksFile"]
+        d = json.load(open(f)) if f.exists() else {}
+        v = dict(v, style=VERSIONS[d.get("base") or v["base"]]["style"],
+                 picks={k: x["pick"] for k, x in d.get("picks", {}).items() if x.get("pick")})
     no_gap = {r: [tuple(x) for x in TL.get("noGap", {}).get(r, [])] for r in RECS}
     items = [card(v["title"], v.get("subtitle", ""), "Recorded Tue 10 Nov 2026 · times shown on the right are real",
                   4.0, chapter="Intro")]
@@ -483,7 +488,7 @@ def render_item(it):
     if out.exists():
         return out
     out.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out.with_suffix(".tmp.mp4")
+    tmp = out.with_suffix(f".{os.getpid()}-{threading.get_ident()}.tmp.mp4")
     if it["kind"] == "card":
         cmd = ["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(it["dur"]),
                "-i", str(card_png(it)), "-f", "lavfi", "-t", str(it["dur"]),
@@ -531,7 +536,7 @@ def render_item(it):
     res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     if res.returncode:
         raise RuntimeError(f"ffmpeg failed for {it}: {res.stderr[-1500:]}")
-    tmp.rename(out)
+    os.replace(tmp, out)
     return out
 
 

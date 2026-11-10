@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scene picks</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--fg:#1d1d1f;--muted:#6e6e73;--line:#e2e2e0;--accent:#2f6fde;--accent-soft:#e8effc;--real:#1f8a4c;--fast:#b86e00;--dim:#a1a1a6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,system-ui,sans-serif}
+header{padding:14px 20px 10px;border-bottom:1px solid var(--line);background:var(--card)}
+h1{font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0}
+.totals{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.chip{border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--bg);font-size:13px}
+.chip b{font-variant-numeric:tabular-nums}
+.chip.mix{border-color:var(--accent);background:var(--accent-soft)}
+.keys{color:var(--muted);font-size:12px;margin-top:8px}
+kbd{font:11px ui-monospace,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff;color:var(--fg)}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:0;height:calc(100vh - 128px)}
+.list{overflow:auto;padding:0 0 40px}
+table{border-collapse:separate;border-spacing:0;width:100%}
+th{position:sticky;top:0;background:var(--bg);z-index:1;text-align:left;font-weight:600;font-size:12px;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--line)}
+th small{display:block;font-weight:400}
+td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.scene.other td.what{color:var(--muted)}
+tr.scene.focus td{background:#fbfbfa}
+td.what{width:250px;min-width:200px}
+.clock{font:12px ui-monospace,monospace;color:var(--muted)}
+.title{font-weight:600}
+.src{color:var(--muted);font-size:12px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.cell{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:var(--card);cursor:pointer;min-width:92px;position:relative}
+.cell .d{font-weight:600;font-variant-numeric:tabular-nums}
+.cell .m{font-size:11.5px;color:var(--muted);line-height:1.3}
+.cell .bar{height:4px;border-radius:2px;background:var(--line);margin-top:4px;overflow:hidden;display:flex}
+.cell .bar i{display:block;height:100%}
+.cell.mode{min-width:64px}
+.cell.cur{outline:2px solid var(--accent);outline-offset:1px}
+.cell.picked{background:var(--accent-soft);border-color:var(--accent)}
+.cell.picked::after{content:"✓";position:absolute;right:6px;top:4px;color:var(--accent);font-weight:700}
+.cell.base{border-style:dashed}
+.cell.na{opacity:.45}
+.note{font-size:12px;color:var(--accent);margin-top:3px}
+aside{border-left:1px solid var(--line);background:var(--card);overflow:auto;padding:14px}
+video{width:100%;background:#000;border-radius:6px;aspect-ratio:16/9}
+.now{font-size:12px;color:var(--muted);margin:6px 0 10px}
+.panel h2{font-size:15px;margin:0 0 2px}
+.panel .src{margin-bottom:8px}
+.use{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+button{font:13px -apple-system,system-ui,sans-serif;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--fg)}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.say{margin-top:10px}
+.say div{padding:3px 0;cursor:pointer;display:grid;grid-template-columns:52px 1fr;gap:6px}
+.say div span:first-child{font:11px ui-monospace,monospace;color:var(--muted);padding-top:2px}
+.say div.lost{color:var(--dim)}
+.say div.lost span:last-child::after{content:" · not heard";font-size:11px}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:6px;padding:6px;font:13px -apple-system,system-ui,sans-serif}
+.saved{font-size:12px;color:var(--muted)}
+select{font:13px -apple-system,system-ui,sans-serif;border:1px solid var(--line);border-radius:6px;padding:3px}
+</style></head><body>
+<header>
+  <h1>Two language apps: pick how each scene is cut</h1>
+  <p class="sub">Each row is one scene in real order. Each column is a cut, showing how long that scene lasts in it. Click a cell to watch that cut from that scene, then pick the one you like. Your mix is rendered as <code>both-mine</code>.</p>
+  <div class="totals" id="totals"></div>
+  <div class="keys"><kbd>↑</kbd><kbd>↓</kbd> scene · <kbd>←</kbd><kbd>→</kbd> cut · <kbd>Space</kbd> play/pause · <kbd>Enter</kbd> use the highlighted cut · <kbd>1</kbd>–<kbd>4</kbd> use Short…Real time · <kbd>S</kbd> skip · <kbd>F</kbd> fast-forward · <kbd>R</kbd> real time · <kbd>0</kbd> clear pick · <kbd>C</kbd> comment (<kbd>⌘</kbd><kbd>Enter</kbd> saves)</div>
+</header>
+<div class="wrap">
+  <div class="list"><table><thead id="thead"></thead><tbody id="rows"></tbody></table></div>
+  <aside>
+    <video id="vid" controls preload="metadata"></video>
+    <div class="now" id="now">Click a cell to play.</div>
+    <div class="panel" id="panel"></div>
+  </aside>
+</div>
+<script>
+const COLORS={tracker:'#ef5350',companion:'#4caf78',shared:'#9a9aa4',other:'#c8c8cc'};
+let D, picks={base:'both-short',picks:{}}, row=0, col=0, cols=[], saveTimer=null, saveState='';
+const $=s=>document.querySelector(s);
+const fmt=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function load(){
+  D=await (await fetch('scenes.json')).json();
+  try{const p=await (await fetch('/picks')).json(); if(p&&p.picks) picks=p; if(!picks.base) picks.base='both-short';}catch(e){}
+  cols=[...D.ladder.map(v=>v.name),...D.modes.map(m=>m.name)];
+  render(); focus(0,0,false);
+}
+function label(n){const l=D.ladder.find(v=>v.name===n)||D.modes.find(m=>m.name===n);return l?l.label:n}
+function pickOf(sc){return (picks.picks[sc.id]||{}).pick||null}
+function effective(sc){return pickOf(sc)||picks.base}
+function mixTotal(){return D.fixed+D.scenes.reduce((a,sc)=>a+sc.cells[effective(sc)].dur,0)}
+function cellHTML(sc,n,i){
+  const c=sc.cells[n], isMode=i>=D.ladder.length;
+  let m;
+  if(c.card&&!c.real&&!c.fast) m='card';
+  else{const parts=[]; if(c.real) parts.push(fmt(c.real)+' real'); if(c.fast) parts.push(fmt(c.fast)+' fast'+(c.speeds.length?' ('+c.speeds[0]+(c.speeds.length>1?'–'+c.speeds[c.speeds.length-1]:'')+'×)':'')); m=parts.join(' · ')||'—';}
+  const tot=Math.max(c.dur,0.1), rw=100*c.real/tot, fw=100*c.fast/tot;
+  const cls=['cell']; if(isMode) cls.push('mode');
+  if(pickOf(sc)===n) cls.push('picked'); else if(!pickOf(sc)&&picks.base===n) cls.push('base');
+  if(!canPlay(sc,n)) cls.push('na');
+  return `<div class="${cls.join(' ')}" data-r="${D.scenes.indexOf(sc)}" data-c="${i}"><div class="d">${fmt(c.dur)}</div><div class="m">${m}</div>${isMode?'':`<div class="bar"><i style="width:${rw}%;background:var(--real)"></i><i style="width:${fw}%;background:var(--fast)"></i></div>`}</div>`;
+}
+function render(){
+  $('#thead').innerHTML='<tr><th>Scene</th>'+D.ladder.map((v,i)=>`<th title="${esc(v.desc)}">${i+1} · ${v.label}<small>${fmt(v.total)} total</small></th>`).join('')+D.modes.map(m=>`<th>${m.label[0]} · ${m.label}<small>&nbsp;</small></th>`).join('')+'</tr>';
+  $('#rows').innerHTML=D.scenes.map((sc,r)=>{
+    const com=(picks.picks[sc.id]||{}).comment;
+    return `<tr class="scene ${sc.kind}" id="r${r}"><td class="what"><div class="clock">${sc.clock}</div><div class="title"><span class="dot" style="background:${COLORS[sc.proj]||COLORS.other}"></span>${esc(sc.title)}</div><div class="src">${fmt(sc.e-sc.s)} of footage</div>${com?`<div class="note">💬 ${esc(com)}</div>`:''}</td>`+cols.map((n,i)=>`<td>${cellHTML(sc,n,i)}</td>`).join('')+'</tr>';
+  }).join('');
+  totals();
+  document.querySelectorAll('.cell').forEach(el=>el.addEventListener('click',()=>{focus(+el.dataset.r,+el.dataset.c,true)}));
+}
+function totals(){
+  $('#totals').innerHTML=D.ladder.map((v,i)=>`<span class="chip" title="${esc(v.desc)}">${i+1} · ${v.label} <b>${fmt(v.total)}</b>${v.rendered?'':' (not rendered)'}</span>`).join('')+
+    `<span class="chip mix">Your mix <b>${fmt(mixTotal())}</b> · ${Object.values(picks.picks).filter(p=>p.pick).length} scenes picked</span>`+
+    `<span class="chip">Unpicked scenes use <select id="base">${D.ladder.map(v=>`<option value="${v.name}" ${v.name===picks.base?'selected':''}>${v.label}</option>`).join('')}</select></span><span class="saved" id="saved">${saveState}</span>`;
+  $('#base').addEventListener('change',e=>{picks.base=e.target.value;changed()});
+}
+function canPlay(sc,n){const v=n==='real'?'both-realtime':n;const lv=D.ladder.find(x=>x.name===v);return !!(lv&&lv.rendered&&sc.starts[v]!=null)}
+function focus(r,c,play){
+  r=Math.max(0,Math.min(D.scenes.length-1,r)); c=Math.max(0,Math.min(cols.length-1,c));
+  document.querySelectorAll('.cell.cur').forEach(e=>e.classList.remove('cur'));
+  document.querySelectorAll('tr.focus').forEach(e=>e.classList.remove('focus'));
+  const changedRow=r!==row; row=r; col=c;
+  const tr=$('#r'+r); tr.classList.add('focus');
+  const el=tr.querySelector(`.cell[data-c="${c}"]`); el.classList.add('cur');
+  const box=$('.list').getBoundingClientRect(), b=tr.getBoundingClientRect();
+  if(b.top<box.top+34) $('.list').scrollTop-= (box.top+34-b.top);
+  else if(b.bottom>box.bottom) $('.list').scrollTop+= (b.bottom-box.bottom);
+  panel();
+  if(play) playCell();
+}
+function videoFor(n){return n==='real'?'both-realtime':n}
+function playCell(offset=0){
+  const sc=D.scenes[row], n=cols[col], v=videoFor(n), vid=$('#vid');
+  if(!canPlay(sc,n)){$('#now').textContent=n==='skip'?'Skip shows a card saying what was skipped; there is nothing to play.':n==='fast'?'Fast-forward has no rendered preview yet.':label(n)+' is not rendered yet.';vid.pause();return}
+  const t=sc.starts[v]+offset;
+  const go=()=>{vid.currentTime=t;vid.play()};
+  if(!vid.src.endsWith('/'+v+'.mp4')){vid.src=v+'.mp4';vid.addEventListener('loadedmetadata',go,{once:true})}else go();
+  $('#now').textContent=`Playing ${label(n)} from “${sc.title}” (${fmt(sc.cells[n].dur)} in this cut)`;
+}
+function heardIn(sc,n,s,e){return sc.cells[n].heard.some(([a,b])=>a<e-0.3&&s+0.3<b)}
+function outOffset(sc,n,t){let o=0;for(const [s,e,sp,d] of sc.cells[n].map||[]){if(s==null){o+=d;continue}if(t>=s&&t<e)return o+(t-s)/sp;if(t>=e)o+=d}return o}
+function panel(){
+  const sc=D.scenes[row], n=cols[col], p=picks.picks[sc.id]||{};
+  const say=sc.say.map(([s,e,t])=>`<div class="${heardIn(sc,n,s,e)?'':'lost'}" data-s="${s}"><span>${fmt(s-sc.s)}</span><span>${esc(t)}</span></div>`).join('')||'<div><span></span><span class="src">Nothing said in this scene.</span></div>';
+  $('#panel').innerHTML=`<h2>${esc(sc.title)}</h2><div class="src">${sc.clock} · ${fmt(sc.e-sc.s)} of footage · highlighted: ${label(n)}, ${fmt(sc.cells[n].dur)}</div>
+  <div class="use">${cols.map((x,i)=>`<button data-p="${x}" class="${(p.pick||'')===x?'on':''}">${i<D.ladder.length?(i+1)+' ':''}${label(x)}</button>`).join('')}<button data-p="">Clear</button></div>
+  <textarea id="com" placeholder="Comment on this scene (C)">${esc(p.comment||'')}</textarea>
+  <div class="say"><div class="src" style="display:block">What you say. Grey lines are fast-forwarded or cut in ${label(n)}, so they're not heard.</div>${say}</div>`;
+  $('#panel').querySelectorAll('button[data-p]').forEach(b=>b.addEventListener('click',()=>setPick(b.dataset.p||null)));
+  $('#com').addEventListener('input',e=>{(picks.picks[sc.id]=picks.picks[sc.id]||{}).comment=e.target.value;changed(false)});
+  $('#com').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.metaKey){e.preventDefault();$('#com').blur();render();focus(row,col,false)}if(e.key==='Escape'){$('#com').blur()}});
+  $('#panel').querySelectorAll('.say div[data-s]').forEach(d=>d.addEventListener('click',()=>{if(!d.classList.contains('lost'))playCell(outOffset(sc,n,+d.dataset.s))}));
+}
+function setPick(p){
+  const sc=D.scenes[row]; const cur=picks.picks[sc.id]||{};
+  cur.pick=p; picks.picks[sc.id]=cur; changed();
+}
+function changed(rerender=true){
+  if(rerender){const r=row,c=col;render();focus(r,c,false)} else totals();
+  saveState='Saving…'; $('#saved').textContent=saveState;
+  clearTimeout(saveTimer); saveTimer=setTimeout(save,300);
+}
+async function save(){
+  try{const res=await fetch('/picks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(picks)});saveState=res.ok?'Saved':'Not saved: '+res.status}
+  catch(e){saveState='Not saved: server not running'}
+  $('#saved').textContent=saveState;
+}
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT'||e.metaKey||e.ctrlKey||e.altKey)return;
+  const k=e.key;
+  if(k==='ArrowDown'){e.preventDefault();focus(row+1,col,false)}
+  else if(k==='ArrowUp'){e.preventDefault();focus(row-1,col,false)}
+  else if(k==='ArrowRight'){e.preventDefault();focus(row,col+1,false)}
+  else if(k==='ArrowLeft'){e.preventDefault();focus(row,col-1,false)}
+  else if(k===' '){e.preventDefault();const v=$('#vid');if(v.src&&!v.paused)v.pause();else playCell()}
+  else if(k==='Enter'){e.preventDefault();setPick(cols[col])}
+  else if(/^[1-4]$/.test(k)){setPick(D.ladder[+k-1].name)}
+  else if(k==='s'||k==='S'){setPick('skip')}
+  else if(k==='f'||k==='F'){setPick('fast')}
+  else if(k==='r'||k==='R'){setPick('real')}
+  else if(k==='0'||k==='Backspace'){e.preventDefault();setPick(null)}
+  else if(k==='c'||k==='C'){e.preventDefault();$('#com').focus()}
+});
+load();
+</script></body></html>

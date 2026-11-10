@@ -218,5 +218,30 @@
    "otherMax": 25,
    "name": "full"
   }
+ },
+ "both-mine": {
+  "title": "Two language apps in one afternoon",
+  "subtitle": "A Mandarin time tracker and a German learning app, built in parallel with Claude Code",
+  "projects": [
+   "tracker",
+   "companion"
+  ],
+  "base": "both-short",
+  "picksFile": "picks.json",
+  "style": {
+   "hl": {
+    "speed": 1,
+    "gapSpeed": 8,
+    "gapMin": 1.2
+   },
+   "rest": {
+    "ratio": 40,
+    "min": 1.5,
+    "max": 6
+   },
+   "other": "card",
+   "name": "short",
+   "hlKey": "hlShort"
+  }
  }
 }
