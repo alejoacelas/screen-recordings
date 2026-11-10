@@ -533,7 +533,13 @@ def render_item(it):
                "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(mask_png()),
                *(["-framerate", str(MASK_FPS), "-i", mask_frames(ms)] if ms else []), *extra,
                "-filter_complex", fc, "-map", "[v]", *amap, *ENC, "-t", f"{od:.3f}", str(tmp)]
-    res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired:
+        # Retry once: an ffmpeg call stalled once with no error while several renders shared the hardware encoder.
+        print(f"ffmpeg timed out on {it['kind']} {it.get('rec', '')} {it.get('s', '')}; retrying once", flush=True)
+        tmp.unlink(missing_ok=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     if res.returncode:
         raise RuntimeError(f"ffmpeg failed for {it}: {res.stderr[-1500:]}")
     os.replace(tmp, out)
