@@ -17,6 +17,10 @@ TEXT = re.compile(
     r"|(?=\w*\d)(?=\w*[^\W\d_A-ZА-Я])(?=\w*[A-ZА-Я])\w{20,}")       # tokens, generated passwords, private doc ids
 
 
+HEADERS = {"First Name", "Last Name", "Company", "Job Title", "Career Stage", "Biography", "Areas of Expertise",
+           "Areas of Interest", "How Others Can Help Me", "How I Can Help Others"}
+
+
 def _box(lines):
     x0 = min(l[1] for l in lines); y0 = min(l[2] for l in lines)
     x1 = max(l[1] + l[3] for l in lines); y1 = max(l[2] + l[4] for l in lines)
@@ -33,10 +37,10 @@ def rects(lines):
         if "Suggested Password" in l[0]:  # Chrome's popup: the suggestion sits on the line below
             s, x, y, w, h = l
             out.append([x - 0.03, y - h, max(w, 0.08) + 0.06, 3.4 * h])
-    if re.search(r"swapcard\.com/messages", text):
-        # Swapcard messages: everything below the browser bar is other people's names, photos and messages
-        bar = [l for l in lines if "swapcard.com" in l[0]]
-        top = max(l[2] + l[4] for l in bar) + 0.01
+    url = [l for l in lines if re.search(r"swapcard\.com/messages", l[0]) and l[2] < 0.15]
+    if url:
+        # Swapcard messages: everything below the address bar is other people's names, photos and messages
+        top = max(l[2] + l[4] for l in url) + 0.01
         out.append([0, top, 1, 1 - top])
     elif "swapcard" in text.lower():
         # Swapcard pages: meeting requests and notifications from other attendees
@@ -45,17 +49,22 @@ def rects(lines):
                 pop = [m for m in lines if l[1] - 0.2 < m[1] < l[1] + 0.2 and l[2] - 0.28 < m[2] < l[2] + 0.02]
                 b = _box(pop)
                 out.append([b[0] - 0.03, b[1] - 0.01, b[2] + 0.04, b[3] + 0.02])
-    head = [l for l in lines if l[0].strip() == "First Name"]
+    head = [l for l in lines if l[0].strip() in HEADERS]
     if head and re.search(r"Attendee|EAGx", text):
-        # attendee spreadsheet: every cell below the header row, and the formula bar
-        h = min(head, key=lambda l: l[2])
-        right = min([l[1] for l in lines if l[0].strip() == "Tables" and l[1] > 0.5] or [1.0])
-        cells = [l for l in lines if l[2] > h[2] + h[4] * 0.6 and l[1] < right and l[2] < 0.97]
-        out += [_box([c]) for c in cells]
-        ref = [l for l in lines if re.fullmatch(r"[A-Z]{1,2}\d{1,4}", l[0].strip()) and l[2] < h[2]]
+        # attendee spreadsheet: the whole grid below the header row, and the formula bar
+        top = min(head, key=lambda l: l[2])
+        row = [l for l in head if abs(l[2] - top[2]) < 0.01]
+        x0 = max(0, min(l[1] for l in row) - 0.03)
+        h = ["", x0, top[2], 0, max(l[4] for l in row)]
+        right = min([l[1] for l in lines if re.search(r"^Tables$|pre-built tables", l[0].strip()) and l[1] > 0.45] or [1.01]) - 0.01
+        tabs = [l[2] for l in lines if re.search(r"^(Sheet\d|Attendee Data)", l[0].strip()) and l[2] > h[2]]
+        bottom = min(tabs or [0.985]) - 0.005
+        out.append([h[1] - 0.004, h[2] + h[4] + 0.002, right - h[1] + 0.004, bottom - h[2] - h[4] - 0.002])
+        ref = [l for l in lines if re.fullmatch(r"[A-Z]{1,2}\d{1,4}(:[A-Z]{1,2}\d{1,4})?", l[0].strip()) and l[2] < h[2]]
         for r_ in ref:
             out += [_box([l]) for l in lines if abs(l[2] - r_[2]) < 0.012 and l[1] > r_[1] + 0.02 and l[1] < right]
-    return [[max(0, x), max(0, y), min(w, 1 - max(0, x)), min(h, 1 - max(0, y))] for x, y, w, h in out]
+    out = [[max(0, x), max(0, y), min(x + w, 1) - max(0, x), min(y + h, 1) - max(0, y)] for x, y, w, h in out]
+    return [r for r in out if r[2] > 0 and r[3] > 0]
 
 
 @lru_cache(None)
