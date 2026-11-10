@@ -221,7 +221,7 @@ def snap(rec, a, b):
 
 def merge(items):
     out = []
-    same = ("rec", "speed", "audio", "box", "blur", "label", "proj")
+    same = ("rec", "speed", "audio", "box", "blur", "label", "proj", "scene")
     for it in items:
         p = out[-1] if out else None
         if (p and p["kind"] == it["kind"] == "clip" and all(p[k] == it[k] for k in same)
@@ -245,74 +245,115 @@ def card(title, sub="", foot="", dur=3.0, chapter=None):
     return {"kind": "card", "title": title, "sub": sub, "foot": foot, "dur": dur, "chapter": chapter}
 
 
-def plan(vname):
-    v = VERSIONS[vname]
-    st = v["style"]
-    no_gap = {r: [tuple(x) for x in TL.get("noGap", {}).get(r, [])] for r in RECS}
-    items = [card(v["title"], v.get("subtitle", ""), "Recorded Tue 10 Nov 2026 · times shown on the right are real",
-                  4.0, chapter="Intro")]
-    entries = TL["entries"]
-
+def scenes(v):
+    """The version's scenes in order: each entry of its projects is one scene, and each run of other work in one
+    recording is one 'other' scene. Ids are stable across versions: <rec>-<start second>."""
     def is_main(en):
         if en["imp"] == "cut":
             return False
         if en["proj"] == "shared":
             return en["imp"] != "minor" or "shared-minor" in v.get("include", [])
         return en["proj"] in v["projects"]
-
-    i, prev_rec = 0, None
+    out, entries, i = [], TL["entries"], 0
     while i < len(entries):
         en = entries[i]
-        if prev_rec == "am" and en["rec"] == "pm":
-            items.append(card("Lunch", "Claude kept building while I ate.",
-                              f"{clock('am', RECS['am']['duration'])} – {clock('pm', 0)}", 2.5))
-        prev_rec = en["rec"]
-        rec = en["rec"]
         if is_main(en):
-            label, ch, hl, rest = NAMES.get(en["proj"], ""), en.get("chapter"), st["hl"], st["rest"]
-            ranges = [snap(rec, max(a, en["s"]), min(b, en["e"])) for a, b in en.get(st.get("hlKey", "hl"), en.get("hl", []))]
-            t = en["s"]
-            for a, b in ranges + [(en["e"], en["e"])]:
-                a, b = max(a, t), max(b, t)
-                if a - t >= 5:                       # the rest of this project's footage, fast-forwarded
-                    target = min(rest["max"], max(rest["min"], (a - t) / rest["ratio"]))
-                    items += clip(rec, t, a, max(1.0, (a - t) / target), label, en["proj"], ch)
-                elif a > t:
-                    items += gap_compress(rec, t, a, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec])
-                if b > a:
-                    items += gap_compress(rec, a, b, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec])
-                t = max(t, b)
+            out.append({"id": f"{en['rec']}-{en['s']}", "kind": "main", "rec": en["rec"], "entries": [en]})
             i += 1
             continue
         run = []
-        while i < len(entries) and not is_main(entries[i]) and entries[i]["rec"] == rec:
+        while i < len(entries) and not is_main(entries[i]) and entries[i]["rec"] == en["rec"]:
             run.append(entries[i])
             i += 1
-        s, e = run[0]["s"], run[-1]["e"]
+        out.append({"id": f"{en['rec']}-{en['s']}", "kind": "other", "rec": en["rec"], "entries": run})
+    return out
+
+
+def style_for(v, sc):
+    """A scene's style: the version's own, or the one picked for this scene (another version's name, or
+    'skip' / 'fast' / 'real')."""
+    pick = v.get("picks", {}).get(sc["id"])
+    if pick in VERSIONS:
+        return VERSIONS[pick]["style"]
+    st = dict(v["style"])
+    if pick == "skip":
+        st.update(mode="skip", other="card")
+    elif pick == "fast":
+        st.update(mode="fast", other="lapse", otherRatio=30, otherMin=4, otherMax=25)
+    elif pick == "real":
+        st.update(mode="real", other="lapse", otherRatio=8, otherMin=4, otherMax=120)
+    return st
+
+
+def main_scene(en, st, no_gap):
+    rec, items = en["rec"], []
+    label, ch, hl, rest = NAMES.get(en["proj"], ""), en.get("chapter"), st["hl"], st["rest"]
+    mode = st.get("mode")
+    if mode == "skip":
+        return [card(f"+{round((en['e'] - en['s']) / 60)} min", en.get("chapter", ""),
+                     f"{clock(rec, en['s'])} – {clock(rec, en['e'])}", 2.5, chapter=ch)]
+    if mode == "real" or st.get("allHl"):
+        ranges = [(en["s"], en["e"])]
+    elif mode == "fast":
+        ranges = []
+    else:
+        ranges = [snap(rec, max(a, en["s"]), min(b, en["e"])) for a, b in en.get(st.get("hlKey", "hl"), en.get("hl", []))]
+    t = en["s"]
+    for a, b in ranges + [(en["e"], en["e"])]:
+        a, b = max(a, t), max(b, t)
+        if a - t >= 5:                       # the rest of this project's footage, fast-forwarded
+            target = min(rest["max"], max(rest["min"], (a - t) / rest["ratio"]))
+            items += clip(rec, t, a, max(1.0, (a - t) / target), label, en["proj"], ch)
+        elif a > t:
+            items += gap_compress(rec, t, a, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec])
+        if b > a:
+            items += gap_compress(rec, a, b, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec])
+        t = max(t, b)
+    return items
+
+
+def other_scene(run, st):
+    rec, items = run[0]["rec"], []
+    s, e = run[0]["s"], run[-1]["e"]
+    if st["other"] == "card":
         mins = round((e - s) / 60)
-        if st["other"] == "card":
-            parts = describe_run(run)
-            sub = "Meanwhile: " + ", ".join(parts) + "." if parts else ""
-            items.append(card(f"+{mins} min" if mins else f"+{round(e - s)} s", sub,
-                              f"{clock(rec, s)} – {clock(rec, e)}", 2.5 if len(sub) < 60 else 3.5))
+        parts = describe_run(run)
+        sub = "Meanwhile: " + ", ".join(parts) + "." if parts else ""
+        return [card(f"+{mins} min" if mins else f"+{round(e - s)} s", sub,
+                     f"{clock(rec, s)} – {clock(rec, e)}", 2.5 if len(sub) < 60 else 3.5)]
+    j = 0
+    while j < len(run):                      # time-lapse other work, cards for cuts
+        if run[j]["imp"] == "cut":
+            c = run[j]
+            items.append(card(c["card"], c.get("cardSub", ""), f"{clock(rec, c['s'])} – {clock(rec, c['e'])}", 3.0))
+            j += 1
             continue
-        j = 0
-        while j < len(run):                      # faithful: time-lapse other work, cards for cuts
-            if run[j]["imp"] == "cut":
-                c = run[j]
-                items.append(card(c["card"], c.get("cardSub", ""),
-                                  f"{clock(rec, c['s'])} – {clock(rec, c['e'])}", 3.0))
-                j += 1
-                continue
-            k = j
-            while k < len(run) and run[k]["imp"] != "cut":
-                k += 1
-            seg = run[j:k]
-            a, b = seg[0]["s"], seg[-1]["e"]
-            target = min(st["otherMax"], max(st["otherMin"], (b - a) / st["otherRatio"]))
-            label = "Meanwhile: " + ", ".join(describe_run(seg))
-            items += clip(rec, a, b, (b - a) / target, label, "other", zoom=False)
-            j = k
+        k = j
+        while k < len(run) and run[k]["imp"] != "cut":
+            k += 1
+        seg = run[j:k]
+        a, b = seg[0]["s"], seg[-1]["e"]
+        target = min(st["otherMax"], max(st["otherMin"], (b - a) / st["otherRatio"]))
+        label = "Meanwhile: " + ", ".join(describe_run(seg))
+        items += clip(rec, a, b, (b - a) / target, label, "other", zoom=False)
+        j = k
+    return items
+
+
+def plan(vname):
+    v = VERSIONS[vname]
+    no_gap = {r: [tuple(x) for x in TL.get("noGap", {}).get(r, [])] for r in RECS}
+    items = [card(v["title"], v.get("subtitle", ""), "Recorded Tue 10 Nov 2026 · times shown on the right are real",
+                  4.0, chapter="Intro")]
+    prev_rec = None
+    for sc in scenes(v):
+        if prev_rec == "am" and sc["rec"] == "pm":
+            items.append(card("Lunch", "Claude kept building while I ate.",
+                              f"{clock('am', RECS['am']['duration'])} – {clock('pm', 0)}", 2.5))
+        prev_rec = sc["rec"]
+        st = style_for(v, sc)
+        new = main_scene(sc["entries"][0], st, no_gap) if sc["kind"] == "main" else other_scene(sc["entries"], st)
+        items += [dict(it, scene=sc["id"]) for it in new]
     return merge(items)
 
 
@@ -435,6 +476,7 @@ def mask_frames(ms):
 
 
 def render_item(it):
+    it = {k: v for k, v in it.items() if k != "scene"}
     ms = masks(it) if it.get("blur") else None
     key = hashlib.sha1(json.dumps(["v5", it, ms] if ms else ["v4", it], sort_keys=True).encode()).hexdigest()[:20]
     out = CACHE / "pieces" / f"{key}.mp4"

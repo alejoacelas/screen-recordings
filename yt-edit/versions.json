@@ -115,6 +115,29 @@
    "hlKey": "hlShort"
   }
  },
+ "both-medium": {
+  "title": "Two language apps in one afternoon",
+  "subtitle": "A Mandarin time tracker and a German learning app, built in parallel with Claude Code",
+  "projects": [
+   "tracker",
+   "companion"
+  ],
+  "style": {
+   "hl": {
+    "speed": 1,
+    "gapSpeed": 6,
+    "gapMin": 1.5
+   },
+   "rest": {
+    "ratio": 6,
+    "min": 2,
+    "max": 40
+   },
+   "other": "card",
+   "name": "medium",
+   "hlKey": "hlShort"
+  }
+ },
  "both-faithful": {
   "title": "Two language apps in one afternoon",
   "subtitle": "Every minute of the session is here; other work is shown as a time-lapse",
@@ -138,6 +161,32 @@
    "otherMin": 4,
    "otherMax": 25,
    "name": "faithful"
+  }
+ },
+ "both-realtime": {
+  "title": "Two language apps in one afternoon",
+  "subtitle": "Every minute of both apps at real speed, with only silences sped up; other work is a time-lapse",
+  "projects": [
+   "tracker",
+   "companion"
+  ],
+  "style": {
+   "hl": {
+    "speed": 1,
+    "gapSpeed": 4,
+    "gapMin": 3
+   },
+   "rest": {
+    "ratio": 6,
+    "min": 2,
+    "max": 40
+   },
+   "allHl": true,
+   "other": "lapse",
+   "otherRatio": 30,
+   "otherMin": 4,
+   "otherMax": 25,
+   "name": "realtime"
   }
  },
  "full": {
