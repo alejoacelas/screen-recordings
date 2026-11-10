@@ -11,6 +11,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+import blurs
+
 ROOT = Path(__file__).parent
 CACHE, OUT = ROOT / "cache", ROOT / "out"
 TL = json.load(open(ROOT / "timeline.json"))
@@ -151,12 +153,12 @@ def clock(rec, t):
 
 
 def blurred(rec, s, e):
-    return any(a < e and s < b for a, b, _ in TL["blur"].get(rec, []))
+    return bool(blurs.at(rec, s, e))
 
 
 def split_points(rec, s, e):
     pts = {s, e}
-    for a, b, _ in TL["blur"].get(rec, []):
+    for a, b in blurs.runs(rec):
         pts |= {p for p in (a, b) if s < p < e}
     return sorted(pts)
 
@@ -407,8 +409,34 @@ ENC = ["-c:v", "h264_videotoolbox", "-b:v", "9M", "-profile:v", "high", "-pix_fm
        "-video_track_timescale", "30000", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
 
 
+MASK_FPS = 2
+
+
+def masks(it):
+    """Per 1/MASK_FPS s of the piece, the screen rectangles to pixelate."""
+    n = int(np.ceil((it["e"] - it["s"]) * MASK_FPS)) + 1
+    return [blurs.at(it["rec"], it["s"] + k / MASK_FPS, it["s"] + (k + 1) / MASK_FPS) for k in range(n)]
+
+
+def mask_frames(ms):
+    """Write the masks as a white-on-black PNG sequence at quarter size; returns its ffmpeg input pattern."""
+    d = CACHE / "masks" / hashlib.sha1(json.dumps(ms).encode()).hexdigest()[:20]
+    if not (d / "done").exists():
+        d.mkdir(parents=True, exist_ok=True)
+        w, h = SRC_W // 4, SRC_H // 4
+        for k, rs in enumerate(ms):
+            im = Image.new("L", (w, h), 0)
+            dr = ImageDraw.Draw(im)
+            for x, y, rw, rh in rs:
+                dr.rectangle((x * w, y * h, (x + rw) * w, (y + rh) * h), fill=255)
+            im.save(d / f"{k:05d}.png")
+        (d / "done").touch()
+    return str(d / "%05d.png")
+
+
 def render_item(it):
-    key = hashlib.sha1(json.dumps(["v4", it], sort_keys=True).encode()).hexdigest()[:20]
+    ms = masks(it) if it.get("blur") else None
+    key = hashlib.sha1(json.dumps(["v5", it, ms] if ms else ["v4", it], sort_keys=True).encode()).hexdigest()[:20]
     out = CACHE / "pieces" / f"{key}.mp4"
     if out.exists():
         return out
@@ -426,9 +454,16 @@ def render_item(it):
         cw, ch = int(SRC_W * w) // 2 * 2, int(SRC_H * w) // 2 * 2
         cx, cy = int(SRC_W * x) // 2 * 2, int(SRC_H * y) // 2 * 2
         fx, fy, fs = r["face"]
-        blur = f",scale={SW // 24}:{H // 24},scale={SW}:{H}:flags=bicubic" if it["blur"] else ""
         sp = it["speed"]
-        fc = (f"[0:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},crop={cw}:{ch}:{cx}:{cy},scale={SW}:{H}:flags=lanczos{blur},"
+        if ms:
+            # pixelate the whole frame, then show it only through the mask's rectangles
+            pix = f"[0:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},split[s0][s1];" \
+                  f"[s1]scale={SRC_W // 50}:{SRC_H // 50},scale={SRC_W}:{SRC_H}:flags=neighbor,format=yuva420p[px];" \
+                  f"[4:v]setpts=PTS-STARTPTS,scale={SRC_W}:{SRC_H}:flags=neighbor,format=gray,fps={30 / sp:.5f}[m];" \
+                  f"[px][m]alphamerge[pxa];[s0][pxa]overlay=0:0:shortest=1[sb];[sb]"
+        else:
+            pix = f"[0:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},"
+        fc = (f"{pix}crop={cw}:{ch}:{cx}:{cy},scale={SW}:{H}:flags=lanczos,"
               f"setpts=PTS/{sp},fps=30[scr];"
               f"[1:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},crop={fs}:{fs}:{fx}:{fy},scale={BUB}:{BUB},setpts=PTS/{sp},fps=30,"
               f"format=yuva420p[cam];[cam][3:v]alphamerge[bub];"
@@ -442,13 +477,14 @@ def render_item(it):
             extra = []
         else:
             extra = ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
-            amap = ["-map", "4:a"]
+            amap = ["-map", f"{5 if ms else 4}:a"]
         cmd = ["ffmpeg", "-v", "error", "-y",
                "-hwaccel", "videotoolbox", "-ss", f"{it['s'] + r['screenOffset']:.3f}", "-t", f"{d:.3f}",
                "-i", f"{r['dir']}/segments/001-screen.mov",
                "-ss", f"{it['s']:.3f}", "-t", f"{d:.3f}", "-i", f"{r['dir']}/segments/001-camera.mov",
                "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(sidebar_png(it)),
-               "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(mask_png()), *extra,
+               "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(mask_png()),
+               *(["-framerate", str(MASK_FPS), "-i", mask_frames(ms)] if ms else []), *extra,
                "-filter_complex", fc, "-map", "[v]", *amap, *ENC, "-t", f"{od:.3f}", str(tmp)]
     res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     if res.returncode:
