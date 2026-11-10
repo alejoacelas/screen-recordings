@@ -9,6 +9,8 @@ scripts = dict(re.findall(r"^## (.+?)\n\n(.*?)(?=\n## |\Z)", (ROOT / "intro-scri
 SCRIPT_FOR = {"tracker": "Mandarin tracker", "companion": "German learning app", "both": "Both apps", "full": "Full day"}
 STYLE = {"short": "Short: highlights at real speed, the rest of this project fast-forwarded, other work replaced by a 'meanwhile' card.",
          "faithful": "Faithful: wider highlights, the rest of this project at about 6× speed, other work shown as a labelled time-lapse.",
+         "medium": "Medium: the short cut's highlights, with the rest of each scene at about 6× so you see the work happening; other work is a card.",
+         "realtime": "Real time: every minute of both apps at real speed, only silences sped up; other work as a time-lapse.",
          "full": "Full day: all four projects, highlights at real speed and the rest at about 10×."}
 
 EDIT_NOTE = ("How this was edited: everything is in the order it happened. The clock on the right shows the real time, "
@@ -30,13 +32,14 @@ for name, v in VERSIONS.items():
     meta = json.load(open(OUT / f"{name}.json"))
     chapters = [ln.split(" ", 1) for ln in (OUT / f"{name}.chapters.txt").read_text().splitlines() if ln.strip()]
     family = name.split("-")[0]
+    style = STYLE[v["style"]["name"]] if "picksFile" not in v else "Your mix: the treatment you picked for each scene on the scene page."
     script = scripts.get(SCRIPT_FOR[family], "").strip()
     desc = f"{v['subtitle']}\n\n{EDIT_NOTE}\n\n" + "\n".join(f"{t} {c}" for t, c in chapters)
     ch_html = "".join(f'<li><button data-t="{secs(t)}">{t}</button> {html.escape(c)}</li>' for t, c in chapters)
     cards.append(f"""
 <section id="{name}">
   <h2>{html.escape(name)} <span class="len">{meta['duration'] / 60:.1f} min</span></h2>
-  <p class="style">{html.escape(STYLE[v['style']['name']])}</p>
+  <p class="style">{html.escape(style)}</p>
   <video controls preload="metadata" src="{name}.mp4"><track kind="captions" src="{name}.vtt" srclang="en" label="English"></video>
   <div class="cols">
     <div><h3>Chapters</h3><ol class="chapters">{ch_html}</ol></div>
@@ -66,7 +69,7 @@ video{{width:100%;border-radius:6px;background:#000}}
 .copy{{font-size:12px;margin-left:8px;cursor:pointer}}
 </style></head><body><main>
 <h1>Cuts of the 10 Nov recordings</h1>
-<p>Click a chapter time to jump there. Captions are on the CC button. Tell me in the terminal what to change; edit points live in <code>yt-edit/timeline.json</code>.</p>
+<p>Click a chapter time to jump there. Captions are on the CC button. To mix the both-apps cuts scene by scene, use the <a href="scenes.html">scene page</a>.</p>
 <nav>{nav}</nav>
 {''.join(cards)}
 </main><script>

@@ -13,8 +13,18 @@ PAD = 0.006
 
 TEXT = re.compile(
     r"[\w.+-]+@gmail\.com"                                   # email addresses in the browser
-    r"|Cra 86F|Bogot[aá], DC|110871|Mastercard|•••• ?2972|\b10/2031\b"   # billing address and card
-    r"|(?<!\w)(?!re[qa]_)(?=\w*\d)(?=\w*[^\W\d_A-ZА-Я])(?=\w*[A-ZА-Я])\w{20,}")       # tokens, generated passwords, private doc ids
+    r"|Cra 86F|Bogot[aá], DC|110871|Mastercard|•••• ?2972|\b10/2031\b")   # billing address and card
+# random-looking strings: access tokens and generated passwords standing alone, or ids in private links
+TOKEN = re.compile(r"(?<!\w)(?!re[qa]_)(?=\w*\d)(?=\w*[^\W\d_A-ZА-Я])(?=\w*[A-ZА-Я])\w{20,}")
+PRIVATE_LINK = re.compile(r"spreadsheets/d/\w|/artifact/\w|swapcard\.com/messages/")
+
+
+def private(text):
+    if TEXT.search(text) or PRIVATE_LINK.search(text):
+        return True
+    if TOKEN.search(text):
+        return bool(PRIVATE_LINK.search(text)) or not re.search(r"[+=/]", text)
+    return False
 
 
 HEADERS = {"First Name", "Last Name", "Company", "Job Title", "Career Stage", "Biography", "Areas of Expertise",
@@ -32,7 +42,7 @@ def rects(lines):
     out = []
     text = " ".join(l[0] for l in lines)
     for l in lines:
-        if TEXT.search(l[0]):
+        if private(l[0]):
             out.append(_box([l]))
         if "Suggested Password" in l[0]:  # Chrome's popup: the suggestion sits on the line below
             s, x, y, w, h = l

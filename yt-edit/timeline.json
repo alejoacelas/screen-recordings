@@ -26,6 +26,66 @@
  "blur": {
   "am": [
    [
+    9,
+    11,
+    "token or private link (found by full scan)"
+   ],
+   [
+    361,
+    399,
+    "token or private link (found by full scan)"
+   ],
+   [
+    398,
+    904,
+    "email (found by full scan)"
+   ],
+   [
+    908,
+    930,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1195,
+    1197,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1203,
+    1205,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1417,
+    1423,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1433,
+    1436,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1452,
+    1458,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1497,
+    1502,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1567,
+    1572,
+    "token or private link (found by full scan)"
+   ],
+   [
+    1578,
+    1580,
+    "token or private link (found by full scan)"
+   ],
+   [
     1597,
     1642,
     "browser history, Swapcard messages, attendee sheet"
@@ -39,6 +99,66 @@
     1842,
     1850,
     "attendee sheet"
+   ],
+   [
+    1854,
+    1856,
+    "email (found by full scan)"
+   ],
+   [
+    2127,
+    2129,
+    "Swapcard or attendee sheet (found by full scan)"
+   ],
+   [
+    2300,
+    2317,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2469,
+    2473,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2579,
+    2581,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2624,
+    2646,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2827,
+    2832,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2998,
+    3001,
+    "token or private link (found by full scan)"
+   ],
+   [
+    3498,
+    3503,
+    "token or private link (found by full scan)"
+   ],
+   [
+    3628,
+    3632,
+    "token or private link (found by full scan)"
+   ],
+   [
+    3670,
+    3675,
+    "token or private link (found by full scan)"
+   ],
+   [
+    3702,
+    3707,
+    "token or private link (found by full scan)"
    ]
   ],
   "pm": [
@@ -46,6 +166,11 @@
     84,
     142,
     "browser history and billing page"
+   ],
+   [
+    882,
+    884,
+    "email (found by full scan)"
    ],
    [
     1088,
@@ -58,9 +183,59 @@
     "billing page and browser history"
    ],
    [
+    1421,
+    1423,
+    "email (found by full scan)"
+   ],
+   [
+    1635,
+    1637,
+    "token or private link (found by full scan)"
+   ],
+   [
     2034,
     2106,
     "saved-password suggestion"
+   ],
+   [
+    2112,
+    2116,
+    "email (found by full scan)"
+   ],
+   [
+    2215,
+    2217,
+    "email (found by full scan)"
+   ],
+   [
+    2253,
+    2261,
+    "password suggestion (found by full scan)"
+   ],
+   [
+    2479,
+    2482,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2492,
+    2494,
+    "email (found by full scan)"
+   ],
+   [
+    2926,
+    2928,
+    "token or private link (found by full scan)"
+   ],
+   [
+    2956,
+    2958,
+    "email (found by full scan)"
+   ],
+   [
+    3021,
+    3024,
+    "email (found by full scan)"
    ]
   ]
  },
