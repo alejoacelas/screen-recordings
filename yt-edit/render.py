@@ -606,7 +606,7 @@ def captions_and_chapters(items, starts):
 
 def render(vname):
     items = plan(vname)
-    with ThreadPoolExecutor(6) as ex:
+    with ThreadPoolExecutor(4) as ex:
         files = list(ex.map(render_item, items))
     starts, t = [], 0.0
     for f in files:
