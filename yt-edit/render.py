@@ -451,7 +451,8 @@ def mask_png():
     return p
 
 
-ENC = ["-c:v", "h264_videotoolbox", "-b:v", "9M", "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", "30",
+# Software x264: the VideoToolbox hardware encoder occasionally stalled for good mid-piece.
+ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", "30",
        "-video_track_timescale", "30000", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
 
 
@@ -483,14 +484,14 @@ def mask_frames(ms):
 def render_item(it):
     it = {k: v for k, v in it.items() if k != "scene"}
     ms = masks(it) if it.get("blur") else None
-    key = hashlib.sha1(json.dumps(["v5", it, ms] if ms else ["v4", it], sort_keys=True).encode()).hexdigest()[:20]
+    key = hashlib.sha1(json.dumps(["x264", it, ms], sort_keys=True).encode()).hexdigest()[:20]
     out = CACHE / "pieces" / f"{key}.mp4"
     if out.exists():
         return out
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(f".{os.getpid()}-{threading.get_ident()}.tmp.mp4")
     if it["kind"] == "card":
-        cmd = ["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(it["dur"]),
+        cmd = ["ffmpeg", "-nostdin", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(it["dur"]),
                "-i", str(card_png(it)), "-f", "lavfi", "-t", str(it["dur"]),
                "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a", *ENC, "-t", str(it["dur"]), str(tmp)]
     else:
@@ -525,7 +526,7 @@ def render_item(it):
         else:
             extra = ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
             amap = ["-map", f"{5 if ms else 4}:a"]
-        cmd = ["ffmpeg", "-v", "error", "-y",
+        cmd = ["ffmpeg", "-nostdin", "-v", "error", "-y",
                "-hwaccel", "videotoolbox", "-ss", f"{it['s'] + r['screenOffset']:.3f}", "-t", f"{d:.3f}",
                "-i", f"{r['dir']}/segments/001-screen.mov",
                "-ss", f"{it['s']:.3f}", "-t", f"{d:.3f}", "-i", f"{r['dir']}/segments/001-camera.mov",
