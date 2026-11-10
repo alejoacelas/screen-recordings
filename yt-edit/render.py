@@ -447,10 +447,10 @@ def render_item(it):
                "-hwaccel", "videotoolbox", "-ss", f"{it['s'] + r['screenOffset']:.3f}", "-t", f"{d:.3f}",
                "-i", f"{r['dir']}/segments/001-screen.mov",
                "-ss", f"{it['s']:.3f}", "-t", f"{d:.3f}", "-i", f"{r['dir']}/segments/001-camera.mov",
-               "-loop", "1", "-framerate", "30", "-i", str(sidebar_png(it)),
-               "-loop", "1", "-framerate", "30", "-i", str(mask_png()), *extra,
+               "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(sidebar_png(it)),
+               "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(mask_png()), *extra,
                "-filter_complex", fc, "-map", "[v]", *amap, *ENC, "-t", f"{od:.3f}", str(tmp)]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     if res.returncode:
         raise RuntimeError(f"ffmpeg failed for {it}: {res.stderr[-1500:]}")
     tmp.rename(out)
