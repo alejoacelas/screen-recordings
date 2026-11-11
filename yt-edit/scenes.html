@@ -58,7 +58,7 @@ select{font:13px -apple-system,system-ui,sans-serif;border:1px solid var(--line)
 </style></head><body>
 <header>
   <h1>Two language apps: pick how each scene is cut</h1>
-  <p class="sub">Each row is one scene in real order. Each column is a cut, showing how long that scene lasts in it. Click a cell to watch that cut from that scene, then pick the one you like. Your mix is rendered as <code>both-mine</code>.</p>
+  <p class="sub">Each row is one scene, sorted by how much longer it runs in Real time than in Short (switch to real order at the top). Each column is a cut, showing how long that scene lasts in it. Click a cell to watch that cut from that scene, then pick the one you like. Your mix is rendered as <code>both-mine</code>.</p>
   <div class="totals" id="totals"></div>
   <div class="keys"><kbd>↑</kbd><kbd>↓</kbd> scene · <kbd>←</kbd><kbd>→</kbd> cut · <kbd>Space</kbd> play/pause · <kbd>Enter</kbd> use the highlighted cut · <kbd>1</kbd>–<kbd>4</kbd> use Short…Real time · <kbd>S</kbd> skip · <kbd>F</kbd> fast-forward · <kbd>R</kbd> real time · <kbd>0</kbd> clear pick · <kbd>C</kbd> comment (<kbd>⌘</kbd><kbd>Enter</kbd> saves)</div>
 </header>
@@ -71,8 +71,9 @@ select{font:13px -apple-system,system-ui,sans-serif;border:1px solid var(--line)
   </aside>
 </div>
 <script>
+const LEAD=5;
 const COLORS={tracker:'#ef5350',companion:'#4caf78',shared:'#9a9aa4',other:'#c8c8cc'};
-let D, picks={base:'both-short',picks:{}}, row=0, col=0, cols=[], saveTimer=null, saveState='';
+let D, picks={base:'both-short',picks:{}}, view=[], order='gap', row=0, col=0, cols=[], saveTimer=null, saveState='';
 const $=s=>document.querySelector(s);
 const fmt=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -81,13 +82,17 @@ async function load(){
   D=await (await fetch('scenes.json')).json();
   try{const p=await (await fetch('/picks')).json(); if(p&&p.picks) picks=p; if(!picks.base) picks.base='both-short';}catch(e){}
   cols=[...D.ladder.map(v=>v.name),...D.modes.map(m=>m.name)];
-  render(); focus(0,0,false);
+  try{order=localStorage.getItem('sceneOrder')||'gap'}catch(e){}
+  sortView(); render(); focus(0,0,false);
 }
+function gap(sc){return sc.cells['both-realtime'].dur-sc.cells['both-short'].dur}
+function sortView(){view=D.scenes.map((_,i)=>i); if(order==='gap') view.sort((a,b)=>gap(D.scenes[b])-gap(D.scenes[a])||a-b)}
+function cur(){return D.scenes[view[row]]}
 function label(n){const l=D.ladder.find(v=>v.name===n)||D.modes.find(m=>m.name===n);return l?l.label:n}
 function pickOf(sc){return (picks.picks[sc.id]||{}).pick||null}
 function effective(sc){return pickOf(sc)||picks.base}
 function mixTotal(){return D.fixed+D.scenes.reduce((a,sc)=>a+sc.cells[effective(sc)].dur,0)}
-function cellHTML(sc,n,i){
+function cellHTML(sc,n,i,r){
   const c=sc.cells[n], isMode=i>=D.ladder.length;
   let m;
   if(c.card&&!c.real&&!c.fast) m='card';
@@ -96,13 +101,14 @@ function cellHTML(sc,n,i){
   const cls=['cell']; if(isMode) cls.push('mode');
   if(pickOf(sc)===n) cls.push('picked'); else if(!pickOf(sc)&&picks.base===n) cls.push('base');
   if(!canPlay(sc,n)) cls.push('na');
-  return `<div class="${cls.join(' ')}" data-r="${D.scenes.indexOf(sc)}" data-c="${i}"><div class="d">${fmt(c.dur)}</div><div class="m">${m}</div>${isMode?'':`<div class="bar"><i style="width:${rw}%;background:var(--real)"></i><i style="width:${fw}%;background:var(--fast)"></i></div>`}</div>`;
+  return `<div class="${cls.join(' ')}" data-r="${r}" data-c="${i}"><div class="d">${fmt(c.dur)}</div><div class="m">${m}</div>${isMode?'':`<div class="bar"><i style="width:${rw}%;background:var(--real)"></i><i style="width:${fw}%;background:var(--fast)"></i></div>`}</div>`;
 }
 function render(){
   $('#thead').innerHTML='<tr><th>Scene</th>'+D.ladder.map((v,i)=>`<th title="${esc(v.desc)}">${i+1} · ${v.label}<small>${fmt(v.total)} total</small></th>`).join('')+D.modes.map(m=>`<th>${m.label[0]} · ${m.label}<small>&nbsp;</small></th>`).join('')+'</tr>';
-  $('#rows').innerHTML=D.scenes.map((sc,r)=>{
+  $('#rows').innerHTML=view.map((si,r)=>{
+    const sc=D.scenes[si];
     const com=(picks.picks[sc.id]||{}).comment;
-    return `<tr class="scene ${sc.kind}" id="r${r}"><td class="what"><div class="clock">${sc.clock}</div><div class="title"><span class="dot" style="background:${COLORS[sc.proj]||COLORS.other}"></span>${esc(sc.title)}</div><div class="src">${fmt(sc.e-sc.s)} of footage</div>${com?`<div class="note">💬 ${esc(com)}</div>`:''}</td>`+cols.map((n,i)=>`<td>${cellHTML(sc,n,i)}</td>`).join('')+'</tr>';
+    return `<tr class="scene ${sc.kind}" id="r${r}"><td class="what"><div class="clock">${sc.clock}</div><div class="title"><span class="dot" style="background:${COLORS[sc.proj]||COLORS.other}"></span>${esc(sc.title)}</div><div class="src">${fmt(sc.e-sc.s)} of footage · Real time is ${fmt(gap(sc))} longer than Short</div>${com?`<div class="note">💬 ${esc(com)}</div>`:''}</td>`+cols.map((n,i)=>`<td>${cellHTML(sc,n,i,r)}</td>`).join('')+'</tr>';
   }).join('');
   totals();
   document.querySelectorAll('.cell').forEach(el=>el.addEventListener('click',()=>{focus(+el.dataset.r,+el.dataset.c,true)}));
@@ -110,12 +116,13 @@ function render(){
 function totals(){
   $('#totals').innerHTML=D.ladder.map((v,i)=>`<span class="chip" title="${esc(v.desc)}">${i+1} · ${v.label} <b>${fmt(v.total)}</b>${v.rendered?'':' (not rendered)'}</span>`).join('')+
     `<span class="chip mix">Your mix <b>${fmt(mixTotal())}</b> · ${Object.values(picks.picks).filter(p=>p.pick).length} scenes picked</span>`+
-    `<span class="chip">Unpicked scenes use <select id="base">${D.ladder.map(v=>`<option value="${v.name}" ${v.name===picks.base?'selected':''}>${v.label}</option>`).join('')}</select></span><span class="saved" id="saved">${saveState}</span>`;
+    `<span class="chip">Unpicked scenes use <select id="base">${D.ladder.map(v=>`<option value="${v.name}" ${v.name===picks.base?'selected':''}>${v.label}</option>`).join('')}</select></span><span class="chip">Order <select id="order"><option value="gap" ${order==='gap'?'selected':''}>Biggest Short vs Real time gap</option><option value="real" ${order==='real'?'selected':''}>Real order</option></select></span><span class="saved" id="saved">${saveState}</span>`;
   $('#base').addEventListener('change',e=>{picks.base=e.target.value;changed()});
+  $('#order').addEventListener('change',e=>{const si=view[row];order=e.target.value;try{localStorage.setItem('sceneOrder',order)}catch(x){}sortView();render();$('.list').scrollTop=0;focus(view.indexOf(si),col,false)});
 }
 function canPlay(sc,n){const v=n==='real'?'both-realtime':n;const lv=D.ladder.find(x=>x.name===v);return !!(lv&&lv.rendered&&sc.starts[v]!=null)}
 function focus(r,c,play){
-  r=Math.max(0,Math.min(D.scenes.length-1,r)); c=Math.max(0,Math.min(cols.length-1,c));
+  r=Math.max(0,Math.min(view.length-1,r)); c=Math.max(0,Math.min(cols.length-1,c));
   document.querySelectorAll('.cell.cur').forEach(e=>e.classList.remove('cur'));
   document.querySelectorAll('tr.focus').forEach(e=>e.classList.remove('focus'));
   const changedRow=r!==row; row=r; col=c;
@@ -129,17 +136,17 @@ function focus(r,c,play){
 }
 function videoFor(n){return n==='real'?'both-realtime':n}
 function playCell(offset=0){
-  const sc=D.scenes[row], n=cols[col], v=videoFor(n), vid=$('#vid');
+  const sc=cur(), n=cols[col], v=videoFor(n), vid=$('#vid');
   if(!canPlay(sc,n)){$('#now').textContent=n==='skip'?'Skip shows a card saying what was skipped; there is nothing to play.':n==='fast'?'Fast-forward has no rendered preview yet.':label(n)+' is not rendered yet.';vid.pause();return}
-  const t=sc.starts[v]+offset;
+  const t=offset?sc.starts[v]+offset:Math.max(0,sc.starts[v]-LEAD);  // start a little early so the cut into the scene has context
   const go=()=>{vid.currentTime=t;vid.play()};
   if(!vid.src.endsWith('/'+v+'.mp4')){vid.src=v+'.mp4';vid.addEventListener('loadedmetadata',go,{once:true})}else go();
-  $('#now').textContent=`Playing ${label(n)} from “${sc.title}” (${fmt(sc.cells[n].dur)} in this cut)`;
+  $('#now').textContent=`Playing ${label(n)} from “${sc.title}” (${fmt(sc.cells[n].dur)} in this cut)`+(offset?'':`, starting ${LEAD} s before the scene`);
 }
 function heardIn(sc,n,s,e){return sc.cells[n].heard.some(([a,b])=>a<e-0.3&&s+0.3<b)}
 function outOffset(sc,n,t){let o=0;for(const [s,e,sp,d] of sc.cells[n].map||[]){if(s==null){o+=d;continue}if(t>=s&&t<e)return o+(t-s)/sp;if(t>=e)o+=d}return o}
 function panel(){
-  const sc=D.scenes[row], n=cols[col], p=picks.picks[sc.id]||{};
+  const sc=cur(), n=cols[col], p=picks.picks[sc.id]||{};
   const say=sc.say.map(([s,e,t])=>`<div class="${heardIn(sc,n,s,e)?'':'lost'}" data-s="${s}"><span>${fmt(s-sc.s)}</span><span>${esc(t)}</span></div>`).join('')||'<div><span></span><span class="src">Nothing said in this scene.</span></div>';
   $('#panel').innerHTML=`<h2>${esc(sc.title)}</h2><div class="src">${sc.clock} · ${fmt(sc.e-sc.s)} of footage · highlighted: ${label(n)}, ${fmt(sc.cells[n].dur)}</div>
   <div class="use">${cols.map((x,i)=>`<button data-p="${x}" class="${(p.pick||'')===x?'on':''}">${i<D.ladder.length?(i+1)+' ':''}${label(x)}</button>`).join('')}<button data-p="">Clear</button></div>
@@ -151,8 +158,8 @@ function panel(){
   $('#panel').querySelectorAll('.say div[data-s]').forEach(d=>d.addEventListener('click',()=>{if(!d.classList.contains('lost'))playCell(outOffset(sc,n,+d.dataset.s))}));
 }
 function setPick(p){
-  const sc=D.scenes[row]; const cur=picks.picks[sc.id]||{};
-  cur.pick=p; picks.picks[sc.id]=cur; changed();
+  const sc=cur(); const pk=picks.picks[sc.id]||{};
+  pk.pick=p; picks.picks[sc.id]=pk; changed();
 }
 function changed(rerender=true){
   if(rerender){const r=row,c=col;render();focus(r,c,false)} else totals();
