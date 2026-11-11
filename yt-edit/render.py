@@ -451,6 +451,7 @@ def mask_png():
     return p
 
 
+MIC_GAIN_DB, SYSTEM_GAIN_DB = 18, -10
 # Software x264: the VideoToolbox hardware encoder occasionally stalled for good mid-piece.
 ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", "30",
        "-video_track_timescale", "30000", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
@@ -485,7 +486,7 @@ def render_item(it):
     it = {k: v for k, v in it.items() if k != "scene"}
     ms = masks(it) if it.get("blur") else None
     # Sped-up pieces were re-rendered once the timestamps got a fine time base ("tb"); real-time pieces were already right.
-    tag = ["x264"] + (["tb"] if it.get("speed", 1) != 1 else [])
+    tag = ["x264"] + (["tb"] if it.get("speed", 1) != 1 else []) + ([f"mix{MIC_GAIN_DB}/{SYSTEM_GAIN_DB}"] if it.get("audio") else [])
     key = hashlib.sha1(json.dumps([*tag, it, ms], sort_keys=True).encode()).hexdigest()[:20]
     out = CACHE / "pieces" / f"{key}.mp4"
     if out.exists():
@@ -521,8 +522,10 @@ def render_item(it):
               f"format=yuv420p[v]")
         if it["audio"]:
             tempo = f",atempo={sp}" if abs(sp - 1) > 0.01 else ""
-            fc += (f";[0:a]asetpts=PTS-STARTPTS[sa];[1:a]asetpts=PTS-STARTPTS[ma];"
-                   f"[sa][ma]amix=inputs=2:duration=longest:normalize=0{tempo},aresample=48000[a]")
+            # The mic was recorded at about -36 LUFS and YouTube playing on the computer at about -20 LUFS:
+            # raise the voice and lower the computer so the computer sits about 8 dB under the voice, then limit peaks.
+            fc += (f";[0:a]asetpts=PTS-STARTPTS,volume={SYSTEM_GAIN_DB}dB[sa];[1:a]asetpts=PTS-STARTPTS,volume={MIC_GAIN_DB}dB[ma];"
+                   f"[sa][ma]amix=inputs=2:duration=longest:normalize=0{tempo},alimiter=limit=0.89:level=disabled,aresample=48000[a]")
             amap = ["-map", "[a]"]
             extra = []
         else:
