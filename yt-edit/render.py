@@ -484,7 +484,9 @@ def mask_frames(ms):
 def render_item(it):
     it = {k: v for k, v in it.items() if k != "scene"}
     ms = masks(it) if it.get("blur") else None
-    key = hashlib.sha1(json.dumps(["x264", it, ms], sort_keys=True).encode()).hexdigest()[:20]
+    # Sped-up pieces were re-rendered once the timestamps got a fine time base ("tb"); real-time pieces were already right.
+    tag = ["x264"] + (["tb"] if it.get("speed", 1) != 1 else [])
+    key = hashlib.sha1(json.dumps([*tag, it, ms], sort_keys=True).encode()).hexdigest()[:20]
     out = CACHE / "pieces" / f"{key}.mp4"
     if out.exists():
         return out
@@ -512,8 +514,8 @@ def render_item(it):
         else:
             pix = f"[0:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},"
         fc = (f"{pix}crop={cw}:{ch}:{cx}:{cy},scale={SW}:{H}:flags=lanczos,"
-              f"setpts=PTS/{sp},fps=30[scr];"
-              f"[1:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},crop={fs}:{fs}:{fx}:{fy},scale={BUB}:{BUB},setpts=PTS/{sp},fps=30,"
+              f"settb=1/30000,setpts=PTS/{sp},fps=30[scr];"
+              f"[1:v]setpts=PTS-STARTPTS,fps={30 / sp:.5f},crop={fs}:{fs}:{fx}:{fy},scale={BUB}:{BUB},settb=1/30000,setpts=PTS/{sp},fps=30,"
               f"format=yuva420p[cam];[cam][3:v]alphamerge[bub];"
               f"[2:v][scr]overlay=0:0:shortest=1[b1];[b1][bub]overlay={SW + (W - SW - BUB) // 2}:20:shortest=1,"
               f"format=yuv420p[v]")
@@ -527,20 +529,21 @@ def render_item(it):
             extra = ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
             amap = ["-map", f"{5 if ms else 4}:a"]
         cmd = ["ffmpeg", "-nostdin", "-v", "error", "-y",
-               "-hwaccel", "videotoolbox", "-ss", f"{it['s'] + r['screenOffset']:.3f}", "-t", f"{d:.3f}",
+               "-ss", f"{it['s'] + r['screenOffset']:.3f}", "-t", f"{d:.3f}",
                "-i", f"{r['dir']}/segments/001-screen.mov",
                "-ss", f"{it['s']:.3f}", "-t", f"{d:.3f}", "-i", f"{r['dir']}/segments/001-camera.mov",
                "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(sidebar_png(it)),
                "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(mask_png()),
                *(["-framerate", str(MASK_FPS), "-i", mask_frames(ms)] if ms else []), *extra,
                "-filter_complex", fc, "-map", "[v]", *amap, *ENC, "-t", f"{od:.3f}", str(tmp)]
+    limit = 120 + 3 * (it["dur"] if it["kind"] == "card" else (it["e"] - it["s"]) / it["speed"])
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
     except subprocess.TimeoutExpired:
-        # Retry once: an ffmpeg call stalled once with no error while several renders shared the hardware encoder.
+        # Retry once: ffmpeg occasionally stalled with no error when it used the hardware encoder and decoder.
         print(f"ffmpeg timed out on {it['kind']} {it.get('rec', '')} {it.get('s', '')}; retrying once", flush=True)
         tmp.unlink(missing_ok=True)
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
     if res.returncode:
         raise RuntimeError(f"ffmpeg failed for {it}: {res.stderr[-1500:]}")
     os.replace(tmp, out)
