@@ -484,6 +484,37 @@ def mask_frames(ms):
     return str(d / "%05d.png")
 
 
+STALL_S = 45
+
+
+def run_ffmpeg(cmd, tmp, what, tries=3):
+    """Run ffmpeg, restarting it when its output stops growing for STALL_S seconds.
+
+    ffmpeg occasionally deadlocks mid-piece (all threads waiting, 0% CPU) and the same command succeeds when rerun."""
+    import time
+    for attempt in range(tries):
+        tmp.unlink(missing_ok=True)
+        with subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True) as p:
+            err = []
+            reader = threading.Thread(target=lambda: err.append(p.stderr.read()), daemon=True)
+            reader.start()
+            size, still = -1, time.time()
+            while p.poll() is None:
+                time.sleep(2)
+                now = tmp.stat().st_size if tmp.exists() else 0
+                if now != size:
+                    size, still = now, time.time()
+                elif time.time() - still > STALL_S:
+                    p.kill()
+                    break
+            p.wait()
+            reader.join()
+            if p.returncode is not None and p.returncode >= 0:
+                return subprocess.CompletedProcess(cmd, p.returncode, "", "".join(err))
+        print(f"ffmpeg stalled on {what}; restarting ({attempt + 1}/{tries - 1})" if attempt < tries - 1 else f"ffmpeg stalled on {what} {tries} times", flush=True)
+    raise RuntimeError(f"ffmpeg kept stalling on {what}")
+
+
 def render_item(it):
     it = {k: v for k, v in it.items() if k != "scene"}
     ms = masks(it) if it.get("blur") else None
@@ -541,14 +572,7 @@ def render_item(it):
                "-loop", "1", "-framerate", "30", "-t", f"{od + 1:.3f}", "-i", str(mask_png()),
                *(["-framerate", str(MASK_FPS), "-i", mask_frames(ms)] if ms else []), *extra,
                "-filter_complex", fc, "-map", "[v]", *amap, *ENC, "-t", f"{od:.3f}", str(tmp)]
-    limit = 120 + 3 * (it["dur"] if it["kind"] == "card" else (it["e"] - it["s"]) / it["speed"])
-    try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
-    except subprocess.TimeoutExpired:
-        # Retry once: ffmpeg occasionally stalled with no error when it used the hardware encoder and decoder.
-        print(f"ffmpeg timed out on {it['kind']} {it.get('rec', '')} {it.get('s', '')}; retrying once", flush=True)
-        tmp.unlink(missing_ok=True)
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
+    res = run_ffmpeg(cmd, tmp, f"{it['kind']} {it.get('rec', '')} {it.get('s', '')}")
     if res.returncode:
         raise RuntimeError(f"ffmpeg failed for {it}: {res.stderr[-1500:]}")
     os.replace(tmp, out)
