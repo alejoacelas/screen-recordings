@@ -1,4 +1,62 @@
 {
+ "date": "Tue 10 Nov 2026",
+ "projects": {
+  "tracker": {
+   "name": "Mandarin tracker",
+   "color": [
+    239,
+    83,
+    80
+   ]
+  },
+  "companion": {
+   "name": "German learning app",
+   "color": [
+    76,
+    175,
+    120
+   ]
+  },
+  "david": {
+   "name": "David's AI-reviewer project",
+   "color": [
+    100,
+    150,
+    240
+   ]
+  },
+  "eagx": {
+   "name": "EAGx Berlin prep",
+   "color": [
+    200,
+    160,
+    60
+   ]
+  },
+  "shared": {
+   "name": "",
+   "color": [
+    180,
+    180,
+    190
+   ]
+  },
+  "away": {
+   "name": "",
+   "color": [
+    120,
+    120,
+    130
+   ]
+  }
+ },
+ "breaks": [
+  {
+   "after": "am",
+   "title": "Lunch",
+   "sub": "Claude kept building while I ate."
+  }
+ ],
  "recordings": {
   "am": {
    "dir": "/Users/alejo/Movies/Screen Recordings/2026-11-10 11.36.41",

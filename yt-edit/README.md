@@ -1,17 +1,20 @@
-# YouTube cuts of the 10 Nov recordings
+# yt-edit
 
-Renders several cuts of the two 10 Nov recordings for YouTube. Each cut keeps the real order. A sidebar shows the face bubble, the project, the real clock time and the playback speed. Private screens are blurred.
+Turns a day of recordings from the menu bar app into a YouTube video. Everything stays in real order, with your speech at real speed and silences sped up. Other work becomes a labelled time-lapse. A sidebar shows the face bubble, the project, the real clock time and the speed, and private text is pixelated.
 
-- `timeline.json`: what happens when in each recording (project, importance, highlights, chapter titles) and which stretches to blur.
-- `versions.json`: which projects each cut follows and how hard it compresses.
-- `intro-scripts.md`: one-minute intros to record and put before each cut.
+- `timeline.json`: the recordings, the date, project names and colours, what happens when (entries with project, importance and chapter title), breaks between recordings, and which stretches to check for private text.
+- `versions.json`: the cut: its title, subtitle, description note, projects and speed settings.
 
 ## Run
 
 ```sh
-uv run --with numpy --with pillow python render.py --plan          # durations only
-uv run --with numpy --with pillow python render.py [version ...]   # writes out/<version>.mp4, .srt, .chapters.txt
-python3 review.py && open out/index.html                            # review page
+uv run --with numpy --with pillow --with mlx-whisper python tools/prepare.py   # transcript, motion and pane dividers into cache/<rec>/
+swiftc -O tools/ocr_boxes.swift -o cache/ocr_boxes
+uv run python tools/scan_ocr.py cache/ocr_boxes <rec>                          # OCR each recording at 1 fps
+uv run python tools/scan_ranges.py                                             # add what it found to the blur list
+uv run python tools/blur_ocr.py cache/ocr_boxes                                 # OCR the blur stretches at 2 fps
+uv run --with numpy --with pillow python render.py --plan                       # durations only
+uv run --with numpy --with pillow python render.py                             # out/<cut>.mp4, .srt, .chapters.txt, .description.txt
 ```
 
-`cache/<am|pm>/` needs `words.json` (Whisper word timestamps of the camera file's mic, from `../language-app-edit/tools/transcribe.py`), `gray.raw` (the screen at 1 fps, 160×104 grayscale) and `panes.json` (pane dividers every 20 s). Rendered pieces are cached by their settings, so re-rendering after an edit only redoes what changed.
+Rendered pieces are cached by their settings, so re-rendering after an edit only redoes what changed. ffmpeg sometimes deadlocks on a piece; `render.py` restarts it when its output stops growing.

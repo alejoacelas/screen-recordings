@@ -1,7 +1,0 @@
-.venv/
-build/
-*.mp4
-*.raw
-*.wav
-node_modules/
-.venv-face/

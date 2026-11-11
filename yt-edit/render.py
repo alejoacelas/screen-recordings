@@ -1,4 +1,4 @@
-"""Render YouTube cuts of the 10 Nov recordings from timeline.json and versions.json.
+"""Render YouTube cuts of the recordings in timeline.json, as configured in versions.json.
 
 python3 render.py [version ...]      # all versions when none given
 python3 render.py --plan [version]   # print the edit plan and durations without rendering
@@ -25,10 +25,8 @@ BUB = 228
 FONT = "/System/Library/Fonts/Avenir Next.ttc"
 BOLD, DEMI, MED, REG = 0, 2, 5, 7
 BG, FG, MUTED = (17, 18, 22), (240, 240, 240), (150, 152, 160)
-COLORS = {"tracker": (239, 83, 80), "companion": (76, 175, 120), "david": (100, 150, 240),
-          "eagx": (200, 160, 60), "shared": (180, 180, 190), "away": (120, 120, 130)}
-NAMES = {"tracker": "Mandarin tracker", "companion": "German learning app", "david": "David's AI-reviewer project",
-         "eagx": "EAGx Berlin prep", "shared": "", "away": ""}
+COLORS = {k: tuple(p["color"]) for k, p in TL["projects"].items()}
+NAMES = {k: p["name"] for k, p in TL["projects"].items()}
 HALLUCINATIONS = re.compile(r"^(thank you\.?|\.\.\.|you)$|you can see that you can see", re.I)
 
 
@@ -271,33 +269,11 @@ def scenes(v):
     return out
 
 
-def style_for(v, sc):
-    """A scene's style: the version's own, or the one picked for this scene (another version's name, or
-    'skip' / 'fast' / 'real')."""
-    pick = v.get("picks", {}).get(sc["id"])
-    if pick in VERSIONS:
-        return VERSIONS[pick]["style"]
-    st = dict(v["style"])
-    if pick == "skip":
-        st.update(mode="skip", other="card")
-    elif pick == "fast":
-        st.update(mode="fast", other="lapse", otherRatio=30, otherMin=4, otherMax=25)
-    elif pick == "real":
-        st.update(mode="real", hl={"speed": 1, "gapSpeed": 4, "gapMin": 3, "gapLong": 6}, other="lapse", otherRatio=30, otherMin=4, otherMax=25)
-    return st
-
-
 def main_scene(en, st, no_gap):
     rec, items = en["rec"], []
     label, ch, hl, rest = NAMES.get(en["proj"], ""), en.get("chapter"), st["hl"], st["rest"]
-    mode = st.get("mode")
-    if mode == "skip":
-        return [card(f"+{round((en['e'] - en['s']) / 60)} min", en.get("chapter", ""),
-                     f"{clock(rec, en['s'])} – {clock(rec, en['e'])}", 2.5, chapter=ch)]
-    if mode == "real" or st.get("allHl"):
+    if st.get("allHl"):                      # real time: the whole entry, with only silences sped up
         ranges = [(en["s"], en["e"])]
-    elif mode == "fast":
-        ranges = []
     else:
         ranges = [snap(rec, max(a, en["s"]), min(b, en["e"])) for a, b in en.get(st.get("hlKey", "hl"), en.get("hl", []))]
     t = en["s"]
@@ -344,21 +320,16 @@ def other_scene(run, st):
 
 def plan(vname):
     v = VERSIONS[vname]
-    if "picksFile" in v:  # picks made on the scene review page: {"base": version, "picks": {scene id: pick}}
-        f = ROOT / v["picksFile"]
-        d = json.load(open(f)) if f.exists() else {}
-        v = dict(v, style=VERSIONS[d.get("base") or v["base"]]["style"],
-                 picks={k: x["pick"] for k, x in d.get("picks", {}).items() if x.get("pick")})
     no_gap = {r: [tuple(x) for x in TL.get("noGap", {}).get(r, [])] for r in RECS}
-    items = [card(v["title"], v.get("subtitle", ""), "Recorded Tue 10 Nov 2026 · times shown on the right are real",
+    items = [card(v["title"], v.get("subtitle", ""), f"Recorded {TL['date']} · times shown on the right are real",
                   4.0, chapter="Intro")]
     prev_rec = None
     for sc in scenes(v):
-        if prev_rec == "am" and sc["rec"] == "pm":
-            items.append(card("Lunch", "Claude kept building while I ate.",
-                              f"{clock('am', RECS['am']['duration'])} – {clock('pm', 0)}", 2.5))
+        for b in TL.get("breaks", []):  # a card for the time between two recordings
+            if prev_rec == b["after"] and sc["rec"] != prev_rec:
+                items.append(card(b["title"], b["sub"], f"{clock(prev_rec, RECS[prev_rec]['duration'])} – {clock(sc['rec'], 0)}", 2.5))
         prev_rec = sc["rec"]
-        st = style_for(v, sc)
+        st = v["style"]
         new = main_scene(sc["entries"][0], st, no_gap) if sc["kind"] == "main" else other_scene(sc["entries"], st)
         items += [dict(it, scene=sc["id"]) for it in new]
     return merge(items)
@@ -412,7 +383,7 @@ def sidebar_png(it):
             y += 14
         d.text((x, y), t, font=font(34 if it["speed"] <= 2.5 else 26, DEMI), fill=FG)
         y += 46
-        d.text((x, y), "Tue 10 Nov", font=font(18), fill=MUTED)
+        d.text((x, y), TL["date"].rsplit(" ", 1)[0], font=font(18), fill=MUTED)
         y += 34
         d.rounded_rectangle((x, y, x + 150, y + 34), 8, fill=(40, 42, 50) if it["speed"] <= 1.05 else (70, 50, 20))
         d.text((x + 12, y + 5), sp, font=font(18, MED), fill=FG)
@@ -487,7 +458,7 @@ def mask_frames(ms):
 STALL_S = 45
 
 
-def run_ffmpeg(cmd, tmp, what, tries=3):
+def run_ffmpeg(cmd, tmp, what, tries=6):
     """Run ffmpeg, restarting it when its output stops growing for STALL_S seconds.
 
     ffmpeg occasionally deadlocks mid-piece (all threads waiting, 0% CPU) and the same command succeeds when rerun."""
@@ -653,6 +624,8 @@ def render(vname):
     srt, chapters = captions_and_chapters(items, starts)
     (OUT / f"{vname}.srt").write_text(srt)
     (OUT / f"{vname}.chapters.txt").write_text(chapters + "\n")
+    v = VERSIONS[vname]
+    (OUT / f"{vname}.description.txt").write_text("\n\n".join(x for x in (v.get("subtitle"), v.get("description"), chapters) if x) + "\n")
     json.dump({"duration": t, "items": [dict(it, start=round(s, 2)) for it, s in zip(items, starts)]},
               open(OUT / f"{vname}.json", "w"), indent=1)
     print(f"{vname}: {t / 60:.1f} min, {len(items)} pieces")

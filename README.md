@@ -7,3 +7,5 @@ A menu bar app for macOS 15+ that records your screen, system audio, microphone 
 - **Output:** `~/Movies/Screen Recordings/<date time>/final.mp4`, with the raw screen and camera files in `segments/`
 
 Requires `brew install ffmpeg`. Build with `./build.sh install`.
+
+`yt-edit/` turns a day of recordings into a YouTube video.
