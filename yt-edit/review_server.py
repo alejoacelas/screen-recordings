@@ -1,6 +1,6 @@
 """Serve the review pages and videos on http://localhost:8823 and save scene picks to picks.json.
 
-python3 review_server.py      # then open http://localhost:8823/scenes.html
+python3 review_server.py      # then open http://localhost:8823/scenes.html or /transcript.html
 """
 import json, os, re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -15,8 +15,9 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*a, directory=str(ROOT / "out"), **k)
 
     def translate_path(self, path):
-        if path.split("?")[0] in ("/", "/scenes.html"):
-            return str(ROOT / "scenes.html")
+        page = path.split("?")[0]
+        if page in ("/", "/scenes.html", "/transcript.html"):
+            return str(ROOT / ("transcript.html" if page == "/transcript.html" else "scenes.html"))
         return super().translate_path(path)
 
     def do_GET(self):

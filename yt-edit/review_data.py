@@ -69,6 +69,7 @@ def main():
     json.dump({"ladder": [{"name": v, "label": LABEL[v], "desc": DESC[v], "total": totals[v],
                            "rendered": (R.OUT / f"{v}.mp4").exists()} for v in LADDER],
                "modes": [{"name": m, "label": LABEL[m]} for m in MODES], "fixed": round(fixed, 1),
+               "clocks": {r: v["clock"] for r, v in R.RECS.items()},  # wall-clock time at second 0 of each recording
                "scenes": scenes}, open(R.OUT / "scenes.json", "w"))
     print(len(scenes), "scenes", totals)
 
