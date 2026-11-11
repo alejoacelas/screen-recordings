@@ -187,7 +187,8 @@ def clip(rec, s, e, speed, label, proj, chapter=None, audio=None, zoom=True):
     return out
 
 
-def gap_compress(rec, s, e, speed, gap_speed, gap_min, label, proj, chapter, no_gap):
+def gap_compress(rec, s, e, speed, gap_speed, gap_min, label, proj, chapter, no_gap, gap_long=None):
+    """Speed up silences of gap_min s or more to gap_speed; silences of gap_long s or more go twice as fast."""
     if any(a < e and s < b for a, b in no_gap):
         return clip(rec, s, e, speed, label, proj, chapter)
     runs = [(max(a, s), min(b, e)) for a, b in rec_data(rec)["runs"] if a < e and b > s]
@@ -198,7 +199,8 @@ def gap_compress(rec, s, e, speed, gap_speed, gap_min, label, proj, chapter, no_
                 lead, tail = (0.3 if t > s else 0), (0.2 if a < e else 0)
                 if lead:
                     out += clip(rec, t, t + lead, speed, label, proj, chapter)
-                out += clip(rec, t + lead, a - tail, gap_speed, label, proj, chapter, audio=False)
+                sp = gap_speed * 2 if gap_long and a - t >= gap_long else gap_speed
+                out += clip(rec, t + lead, a - tail, sp, label, proj, chapter, audio=False)
                 if tail:
                     out += clip(rec, a - tail, a, speed, label, proj, chapter)
             else:
@@ -281,7 +283,7 @@ def style_for(v, sc):
     elif pick == "fast":
         st.update(mode="fast", other="lapse", otherRatio=30, otherMin=4, otherMax=25)
     elif pick == "real":
-        st.update(mode="real", hl={"speed": 1, "gapSpeed": 4, "gapMin": 3}, other="lapse", otherRatio=30, otherMin=4, otherMax=25)
+        st.update(mode="real", hl={"speed": 1, "gapSpeed": 4, "gapMin": 3, "gapLong": 6}, other="lapse", otherRatio=30, otherMin=4, otherMax=25)
     return st
 
 
@@ -305,9 +307,9 @@ def main_scene(en, st, no_gap):
             target = min(rest["max"], max(rest["min"], (a - t) / rest["ratio"]))
             items += clip(rec, t, a, max(1.0, (a - t) / target), label, en["proj"], ch)
         elif a > t:
-            items += gap_compress(rec, t, a, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec])
+            items += gap_compress(rec, t, a, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec], hl.get("gapLong"))
         if b > a:
-            items += gap_compress(rec, a, b, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec])
+            items += gap_compress(rec, a, b, hl["speed"], hl["gapSpeed"], hl["gapMin"], label, en["proj"], ch, no_gap[rec], hl.get("gapLong"))
         t = max(t, b)
     return items
 

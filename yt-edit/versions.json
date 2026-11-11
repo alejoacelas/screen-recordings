@@ -174,7 +174,8 @@
    "hl": {
     "speed": 1,
     "gapSpeed": 4,
-    "gapMin": 3
+    "gapMin": 3,
+    "gapLong": 6
    },
    "rest": {
     "ratio": 6,
